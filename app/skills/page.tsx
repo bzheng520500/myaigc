@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Pagination } from "@/components/pagination";
 import { SkillCard } from "@/components/skill-card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,16 @@ const filterLinkClass =
 const filterLinkActiveClass =
   "rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent-soft-fg";
 
-export default async function SkillsPage({ searchParams }: SkillsPageProps) {
+export default function SkillsPage(props: SkillsPageProps) {
+  // cacheComponents 下 await searchParams 必须在 <Suspense> 内（Task 14 fix）
+  return (
+    <Suspense fallback={<main className="mx-auto w-full max-w-6xl flex-1" aria-busy="true" />}>
+      <SkillsContent {...props} />
+    </Suspense>
+  );
+}
+
+async function SkillsContent({ searchParams }: SkillsPageProps) {
   const sp = await searchParams;
   const category = first(sp.category);
   const q = first(sp.q);

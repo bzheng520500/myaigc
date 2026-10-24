@@ -83,7 +83,16 @@ export async function generateMetadata({
   return { title: skill.name, description: skill.description ?? undefined };
 }
 
-export default async function SkillDetailPage({ params }: SkillDetailPageProps) {
+export default function SkillDetailPage(props: SkillDetailPageProps) {
+  // cacheComponents 下 await params 必须在 <Suspense> 内（Task 14 fix）
+  return (
+    <Suspense fallback={<main className="mx-auto w-full max-w-3xl flex-1" aria-busy="true" />}>
+      <SkillDetailContent {...props} />
+    </Suspense>
+  );
+}
+
+async function SkillDetailContent({ params }: SkillDetailPageProps) {
   const { slug } = await params;
   const skill = await getSkillBySlug(slug);
   if (!skill) notFound();

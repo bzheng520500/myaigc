@@ -1,5 +1,6 @@
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -74,7 +75,22 @@ async function requestLogin(formData: FormData) {
   redirect(`/login?sent=1&returnUrl=${encodeURIComponent(returnUrl)}`);
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
+export default function LoginPage({ searchParams }: LoginPageProps) {
+  // cacheComponents 下 await searchParams 必须在 <Suspense> 内（Task 14 fix）
+  return (
+    <Suspense
+      fallback={
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+          <div className="w-full max-w-sm" aria-busy="true" />
+        </main>
+      }
+    >
+      <LoginCard searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function LoginCard({ searchParams }: LoginPageProps) {
   const sp = await searchParams;
   const returnUrl = sanitizeReturnUrl(first(sp.returnUrl));
   const sent = first(sp.sent) === "1";

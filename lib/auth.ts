@@ -1,7 +1,7 @@
 import { AccessDenied, AuthError } from "@auth/core/errors";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
-import Email from "next-auth/providers/email";
+import type { Provider } from "next-auth/providers";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
 import {
@@ -32,59 +32,74 @@ const RESEND_WINDOW_SEC = 60;
 class EmailSignInError extends AuthError {}
 
 /**
- * 发送验证邮件 / 打印开发链接。
+ * 手写 Email provider 对象（Task 14 fix：next-auth/providers/email 是
+ * @auth/core 的 deprecated 别名，内部静态 import nodemailer 导致构建
+ * 失败。手写对象不引入任何 provider 包装函数，产物与 Email() 等价：
+ * id 仍为 "email"，login 页 signIn("email", …) 行为语义不变）。
+ *
+ * sendVerificationRequest（原顶层函数整体搬入）：
  *
  * 频控拒绝必须抛 AuthError 子类（AccessDenied）：next-auth 的 signIn()
  * 在 server action 中以 raw 模式调用 Auth()，非 AuthError 异常会被吞掉
  * 并转成 error 页跳转，无法在 login 页区分错误类型。
  */
-async function sendVerificationRequest({
-  identifier,
-  url,
-}: {
-  identifier: string;
-  url: string;
-}) {
-  const recent = await recentCount("tokens", identifier, RESEND_WINDOW_SEC);
-  if (recent >= 1) {
-    throw new AccessDenied(`发送过于频繁，请 ${RESEND_WINDOW_SEC / 60} 分钟后再试`);
-  }
+const emailProvider: Provider = {
+  id: "email",
+  type: "email",
+  name: "Email",
+  from: process.env.AUTH_EMAIL_FROM,
+  maxAge: TOKENS_MAX_AGE_SEC, // 15 分钟，与 lib/ratelimit.ts 的窗口反推保持一致
+  async sendVerificationRequest({ identifier, url }) {
+    const recent = await recentCount("tokens", identifier, RESEND_WINDOW_SEC);
+    if (recent >= 1) {
+      throw new AccessDenied(
+        `发送过于频繁，请 ${RESEND_WINDOW_SEC / 60} 分钟后再试`,
+      );
+    }
 
-  if (process.env.AUTH_DEV_MODE === "1") {
-    // 本地开发：完整链接打印到服务端 console，不调 Resend
-    console.log(`[auth] 魔法链接已生成（${identifier}）：${url}`);
-    return;
-  }
+    if (process.env.AUTH_DEV_MODE === "1") {
+      // 本地开发：完整链接打印到服务端 console，不调 Resend
+      console.log(`[auth] 魔法链接已生成（${identifier}）：${url}`);
+      // E2E（Task 14）：Playwright 读不到 dev server 控制台，DEV 模式下
+      // 把链接落盘到 E2E_TOKEN_URL_FILE 供 spec 轮询（见 lib/e2e-login-log.ts）。
+      // 本文件同时被 Edge middleware 引用：NEXT_RUNTIME 守卫 + 动态 import
+      // 让 Turbopack 在 Edge 构建中剔除 node:fs 依赖图（零告警）。
+      if (process.env.NEXT_RUNTIME === "nodejs") {
+        await import("@/lib/e2e-login-log").then((m) => m.appendLoginUrl(url));
+      }
+      return;
+    }
 
-  const from = process.env.AUTH_EMAIL_FROM;
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!from || !apiKey) {
-    throw new EmailSignInError(
-      "邮件发送失败：RESEND_API_KEY / AUTH_EMAIL_FROM 未配置",
-    );
-  }
+    const from = process.env.AUTH_EMAIL_FROM;
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!from || !apiKey) {
+      throw new EmailSignInError(
+        "邮件发送失败：RESEND_API_KEY / AUTH_EMAIL_FROM 未配置",
+      );
+    }
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
-    to: identifier,
-    subject: "登录 AI影视工坊",
-    text: [
-      "你好！",
-      "",
-      "点击以下链接即可登录「AI影视工坊」，链接 15 分钟内有效：",
-      "",
-      url,
-      "",
-      "如果这不是你本人的操作，请忽略本邮件。",
-    ].join("\n"),
-  });
-  if (error) {
-    throw new EmailSignInError(
-      `邮件发送失败：${error.name ?? "ResendError"} ${error.message ?? ""}`.trim(),
-    );
-  }
-}
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from,
+      to: identifier,
+      subject: "登录 AI影视工坊",
+      text: [
+        "你好！",
+        "",
+        "点击以下链接即可登录「AI影视工坊」，链接 15 分钟内有效：",
+        "",
+        url,
+        "",
+        "如果这不是你本人的操作，请忽略本邮件。",
+      ].join("\n"),
+    });
+    if (error) {
+      throw new EmailSignInError(
+        `邮件发送失败：${error.name ?? "ResendError"} ${error.message ?? ""}`.trim(),
+      );
+    }
+  },
+};
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -93,13 +108,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  providers: [
-    Email({
-      from: process.env.AUTH_EMAIL_FROM,
-      maxAge: TOKENS_MAX_AGE_SEC, // 15 分钟，与 lib/ratelimit.ts 的窗口反推保持一致
-      sendVerificationRequest,
-    }),
-  ],
+  providers: [emailProvider],
   session: { strategy: "database" },
   callbacks: {
     /**

@@ -72,7 +72,16 @@ export async function generateMetadata({
   return { title: tutorial.title, description: tutorial.summary ?? undefined };
 }
 
-export default async function TutorialDetailPage({
+export default function TutorialDetailPage(props: TutorialDetailPageProps) {
+  // cacheComponents 下 await params 必须在 <Suspense> 内（Task 14 fix）
+  return (
+    <Suspense fallback={<main className="mx-auto w-full max-w-6xl flex-1" aria-busy="true" />}>
+      <TutorialDetailContent {...props} />
+    </Suspense>
+  );
+}
+
+async function TutorialDetailContent({
   params,
 }: TutorialDetailPageProps) {
   const { slug } = await params;
