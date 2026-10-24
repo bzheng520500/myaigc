@@ -80,11 +80,13 @@ export function CommentSection({
       const result = await createComment({ targetType, targetId, content: trimmed });
       if (result.ok) {
         // optimistic：最新评论插到列表头部（与 created_at desc 一致）
+        // authorId 空串：client 不知道自己的 user id，渲染时降级纯文本
         setItems((prev) => [
           {
             id: crypto.randomUUID(),
             content: trimmed,
             createdAt: new Date(),
+            authorId: "",
             authorName: currentUserName ?? null,
             authorImage: null,
             likeCount: 0,
@@ -149,9 +151,18 @@ export function CommentSection({
           {items.map((comment) => (
             <li key={comment.id} className="flex flex-col gap-1.5 border-t border-border pt-4">
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-sm font-medium">
-                  {comment.authorName ?? "匿名用户"}
-                </span>
+                {comment.authorId ? (
+                  <Link
+                    href={`/u/${comment.authorId}`}
+                    className="font-serif text-sm font-medium transition-colors hover:text-accent-soft-fg"
+                  >
+                    {comment.authorName ?? "匿名用户"}
+                  </Link>
+                ) : (
+                  <span className="font-serif text-sm font-medium">
+                    {comment.authorName ?? "匿名用户"}
+                  </span>
+                )}
                 {/* SSR 与 hydration 时刻不同可能差一档，抑制水合告警 */}
                 <time
                   dateTime={comment.createdAt.toISOString()}

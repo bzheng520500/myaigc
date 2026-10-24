@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import MarkdownView from "@/components/markdown-view";
 import { formatForumTime } from "@/components/thread-row";
@@ -24,9 +25,12 @@ export function ReplyItem({ reply, likeSlot }: ReplyItemProps) {
     <li className="border-t border-border py-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-serif text-sm font-medium">
+          <Link
+            href={`/u/${reply.authorId}`}
+            className="font-serif text-sm font-medium transition-colors hover:text-accent-soft-fg"
+          >
             {reply.authorName ?? "匿名用户"}
-          </span>
+          </Link>
           <time
             dateTime={reply.createdAt.toISOString()}
             className="text-xs text-fg-muted"

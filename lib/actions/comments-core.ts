@@ -25,6 +25,8 @@ export type CommentItem = {
   id: string;
   content: string;
   createdAt: Date;
+  /** 评论作者 id（Phase 3 Task 3：评论区作者名挂链 /u/[id] 用） */
+  authorId: string;
   authorName: string | null;
   authorImage: string | null;
   likeCount: number;

@@ -61,7 +61,12 @@ export function ThreadRow({ thread }: ThreadRowProps) {
             <span aria-hidden="true">·</span>
           </>
         )}
-        <span>{thread.authorName ?? "匿名用户"}</span>
+        <Link
+          href={`/u/${thread.authorId}`}
+          className="transition-colors hover:text-accent-soft-fg"
+        >
+          {thread.authorName ?? "匿名用户"}
+        </Link>
         <span aria-hidden="true">·</span>
         <span>{thread.replyCount} 回复</span>
         <span aria-hidden="true">·</span>

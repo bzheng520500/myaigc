@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { Suspense } from "react";
@@ -119,6 +120,18 @@ async function SkillDetailContent({ params }: SkillDetailPageProps) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
           <Badge variant="secondary">{skill.category}</Badge>
           <span>{sourceLabel}</span>
+          {/* 用户投稿展示作者并挂链主页（Phase 3 Task 3）；官方内容无作者 */}
+          {skill.source === "user" && skill.authorId && skill.author && (
+            <>
+              <span aria-hidden="true">·</span>
+              <Link
+                href={`/u/${skill.authorId}`}
+                className="transition-colors hover:text-accent-soft-fg"
+              >
+                {skill.author.name ?? skill.author.email.split("@")[0]}
+              </Link>
+            </>
+          )}
           <span aria-hidden="true">·</span>
           <span>{skill.viewCount} 次浏览</span>
           <span aria-hidden="true">·</span>

@@ -154,6 +154,7 @@ export async function listComments(
       id: comments.id,
       content: comments.content,
       createdAt: comments.createdAt,
+      authorId: comments.userId,
       authorName: users.name,
       authorImage: users.image,
       likeCount: comments.likeCount,
