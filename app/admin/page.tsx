@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
-import { listAdminData } from "@/lib/actions/admin";
+import { listAdminData, listForumAdminData } from "@/lib/actions/admin";
 import { AdminClient } from "./admin-client";
 
 /**
@@ -46,13 +46,22 @@ async function AdminGate() {
     return <NoPermission />;
   }
 
-  const data = await listAdminData();
-  if (!data.ok) {
+  // 两路数据并行取（论坛数据失败与 skills/comments 同按无权限处理）
+  const [data, forumData] = await Promise.all([
+    listAdminData(),
+    listForumAdminData(),
+  ]);
+  if (!data.ok || !forumData.ok) {
     return <NoPermission />;
   }
 
   return (
-    <AdminClient skills={data.data.skills} comments={data.data.comments} />
+    <AdminClient
+      skills={data.data.skills}
+      comments={data.data.comments}
+      forums={forumData.data.forums}
+      threads={forumData.data.threads}
+    />
   );
 }
 
@@ -67,8 +76,8 @@ export default function AdminPage() {
       <section className="flex flex-col gap-2 pb-8 pt-12">
         <h1 className="font-serif-display text-4xl">管理后台</h1>
         <p className="leading-relaxed text-fg-muted">
-          管理 Skill 内容与评论的展示状态：下架的 Skill 不再出现在列表，
-          隐藏的评论在详情页不再显示。
+          管理 Skill 内容、评论与论坛的展示状态：下架的 Skill 不再出现在列表，
+          隐藏的评论 / 帖子不再显示，论坛板块可新建、编辑与删除。
         </p>
       </section>
 
