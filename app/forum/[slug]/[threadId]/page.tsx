@@ -1,21 +1,27 @@
 import type { Metadata } from "next";
+import type { Session } from "next-auth";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { auth } from "@/lib/auth";
 import MarkdownView from "@/components/markdown-view";
 import { ReplyItem } from "@/components/reply-item";
+import { ReplyForm } from "@/components/reply-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatForumTime } from "@/components/thread-row";
 import { getThreadById, listReplies } from "@/lib/queries/forum";
 
 /**
- * 帖子详情页（Task 2）：帖子头 + Markdown 正文 + 楼层列表 + 回复区占位。
+ * 帖子详情页（Task 2）：帖子头 + Markdown 正文 + 楼层列表 + 回复表单
+ * （Task 3 挂载 ReplyForm）。
  *
  * - ISR 60s：由 getThreadById / listReplies 的 "use cache" + cacheLife 承载
  * - hidden 帖或不存在 → notFound()（404，Review Focus #5）
  * - 作者名 span 不加链：Phase 3 用户主页路由上线后再挂 /u/[id]
- * - cacheComponents 下 await params 必须在 <Suspense> 内
+ * - cacheComponents 下 await params / auth() 都必须在 <Suspense> 内
  *   （generateMetadata 中的 await params 不受此限，与 skills/[slug] 同模式）
+ * - auth() 读 session 判登录态，以 isLoggedIn 传给 client 的 ReplyForm
+ *   （client 组件无法直接调 auth()，参照 CommentSection 模式）
  */
 
 type ThreadPageProps = {
@@ -45,6 +51,16 @@ async function ThreadPageContent({ params }: ThreadPageProps) {
 
   const { thread, authorName } = row;
   const replies = await listReplies(threadId);
+
+  let session: Session | null = null;
+  try {
+    session = await auth();
+  } catch {
+    session = null;
+  }
+  const isLoggedIn = Boolean(
+    (session?.user as { id?: string } | undefined)?.id,
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
@@ -86,7 +102,7 @@ async function ThreadPageContent({ params }: ThreadPageProps) {
         )}
       </section>
 
-      {/* 回复区：锁定帖显示提示卡，否则留 T3 表单占位 */}
+      {/* 回复区：锁定帖显示提示卡，否则渲染回复表单（Task 3） */}
       {thread.isLocked ? (
         <Card className="mb-16 border border-dashed border-border bg-transparent ring-0">
           <CardContent className="flex w-full items-center justify-center py-8">
@@ -95,7 +111,11 @@ async function ThreadPageContent({ params }: ThreadPageProps) {
         </Card>
       ) : (
         <section aria-label="回复区" className="pb-16">
-          {/* ReplyForm T3 */}
+          <ReplyForm
+            threadId={thread.id}
+            locked={thread.isLocked}
+            isLoggedIn={isLoggedIn}
+          />
         </section>
       )}
     </main>
