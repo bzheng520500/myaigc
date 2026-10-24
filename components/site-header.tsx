@@ -22,9 +22,14 @@ const NAV_ITEMS = [
   { label: "论坛", href: "/forum" },
 ] as const;
 
-/** Phase 3 Task 2：真实通知铃铛（保留 Slot 名，页头结构不变） */
+/** Phase 3 Task 2：真实通知铃铛（保留 Slot 名，页头结构不变）。
+ *  usePathname() 是动态值，cacheComponents 预渲染要求 <Suspense> 边界（Phase 3 波次末修复）。 */
 export function NotificationBellSlot() {
-  return <NotificationBell />;
+  return (
+    <Suspense fallback={null}>
+      <NotificationBell />
+    </Suspense>
+  );
 }
 
 async function signOutAction() {
