@@ -1,0 +1,1462 @@
+[
+  {
+    "name": "仰拍英雄战士·中景",
+    "category": "组合运镜",
+    "prompt_en": "Medium shot, low angle, looking up at a heroic warrior holding a sword, dramatic sunset lighting, shallow depth of field, cinematic.",
+    "prompt_zh": "中景，仰视一位手持长剑的英雄战士，戏剧性的日落光线，浅景深，电影感。",
+    "notes": "文生图（Text-to-Image）：生成静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 1
+  },
+  {
+    "name": "特写持玫瑰的苍老之手",
+    "category": "组合运镜",
+    "prompt_en": "Extreme close-up on a weathered hand holding a rose, shallow depth of field, bokeh background, soft lighting, melancholic mood.",
+    "prompt_zh": "极度特写一只布满皱纹的手拿着一朵玫瑰，浅景深，背景虚化，柔和光线，忧郁氛围。",
+    "notes": "文生图（Text-to-Image）：生成静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 2
+  },
+  {
+    "name": "荷兰角未来都市夜景",
+    "category": "组合运镜",
+    "prompt_en": "Dutch angle, wide shot of a futuristic city skyline at night, neon lights reflecting on wet streets, cyberpunk aesthetic, deep depth of field.",
+    "prompt_zh": "荷兰角，未来都市夜景广角镜头，霓虹灯在湿漉漉的街道上反射，赛博朋克美学，深景深。",
+    "notes": "文生图（Text-to-Image）：生成静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 3
+  },
+  {
+    "name": "俯拍棋盘·无形之手",
+    "category": "组合运镜",
+    "prompt_en": "Overhead shot of a chessboard, one piece being moved by an unseen hand, minimalist composition, dramatic shadow.",
+    "prompt_zh": "俯视镜头拍摄棋盘，一只无形的手正在移动棋子，极简构图，戏剧性阴影。",
+    "notes": "文生图（Text-to-Image）：生成静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 4
+  },
+  {
+    "name": "远景悬崖孤影眺海",
+    "category": "组合运镜",
+    "prompt_en": "Long shot, back view of a lone figure standing on a cliff edge overlooking a vast ocean, stormy clouds, high winds (suggested by hair/clothing), epic scale.",
+    "prompt_zh": "远景，一个孤独的身影背对镜头站在悬崖边眺望浩瀚海洋，暴风云，强风（通过头发/衣物暗示），史诗感。",
+    "notes": "文生图（Text-to-Image）：生成静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 5
+  },
+  {
+    "name": "推近战士坚毅面庞",
+    "category": "组合运镜",
+    "prompt_en": "Slow push-in on the warrior's determined face, wind blowing through his hair.",
+    "prompt_zh": "缓慢推进到战士坚毅的脸部，风吹动他的头发。",
+    "notes": "图生视频（Image-to-Video），输入图：英雄战士中景仰视图",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 6
+  },
+  {
+    "name": "拉出老妇凝视玫瑰",
+    "category": "组合运镜",
+    "prompt_en": "Slow pull-out to reveal an old woman sitting alone in a dimly lit room, looking at the rose with tears in her eyes.",
+    "prompt_zh": "缓慢拉出，展现出一位老妇人独自坐在昏暗房间里，眼含泪水看着玫瑰。",
+    "notes": "图生视频（Image-to-Video），输入图：手拿玫瑰特写",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 7
+  },
+  {
+    "name": "上摇未来都市摩天楼",
+    "category": "组合运镜",
+    "prompt_en": "Camera slowly tilts up the towering skyscrapers, flying cars zooming by in the foreground.",
+    "prompt_zh": "镜头缓缓上摇高耸的摩天大楼，飞行汽车在前景疾驰而过。",
+    "notes": "图生视频（Image-to-Video），输入图：未来城市广角荷兰角图",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 8
+  },
+  {
+    "name": "特写落子瞬间",
+    "category": "组合运镜",
+    "prompt_en": "Close-up on the hand placing the chess piece decisively, then cut to (or pan to) the opponent's reaction shot (if generating multi-shot might需要更复杂提示或分步).",
+    "prompt_zh": "特写手果断放下棋子的瞬间，然后切到（或摇到）对手的反应镜头 - 生成多镜头可能更复杂。",
+    "notes": "图生视频（Image-to-Video），输入图：俯视棋盘图",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 9
+  },
+  {
+    "name": "环绕悬崖人物观怒海",
+    "category": "组合运镜",
+    "prompt_en": "Camera slowly orbits around the figure, revealing the stormy sea crashing against the cliffs below, dramatic music swell.",
+    "prompt_zh": "镜头缓缓环绕人物移动，展现出下方波涛汹涌的大海拍打悬崖，戏剧性音乐渐强。",
+    "notes": "图生视频（Image-to-Video），输入图：悬崖边人物远景背影图",
+    "image_url": null,
+    "source_doc": "组合运镜.docx",
+    "sort_order": 10
+  },
+  {
+    "name": "悬疑开场",
+    "category": "组合运镜",
+    "prompt_en": "Low angle, extreme close-up on a trembling hand clutching a blood-stained letter, shallow depth of field (bokeh background), dramatic side lighting casting long shadows, Dutch angle for unease.",
+    "prompt_zh": "仰角，极度特写一只颤抖的手紧抓染血信件，浅景深（背景虚化），戏剧性的侧光投射长影，荷兰角制造不安感。",
+    "notes": "文生图（Text-to-Image）：创造富有动感和张力的静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 11
+  },
+  {
+    "name": "英雄登场",
+    "category": "组合运镜",
+    "prompt_en": "Slow motion implied: Medium shot, backlit hero standing defiantly atop rubble, dust swirling around boots (motion blur suggested), low angle for grandeur, cinematic lens flare.",
+    "prompt_zh": "暗示慢动作：中景，逆光的英雄无畏地站在废墟之上，尘土在靴边盘旋（暗示运动模糊），仰角营造宏伟感，电影镜头光晕。",
+    "notes": "文生图（Text-to-Image）：创造富有动感和张力的静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 12
+  },
+  {
+    "name": "发现与揭示",
+    "category": "组合运镜",
+    "prompt_en": "Over-the-shoulder shot (OTS) from explorer looking into a dark cave entrance, handheld feel for rawness, beam of flashlight cutting through deep shadows, shallow DOF focusing on the mysterious object deep within.",
+    "prompt_zh": "过肩镜头，从探险者视角望向黑暗洞穴入口，手持感体现原始感，手电光束划破深影，浅景深聚焦于深处神秘物体。",
+    "notes": "文生图（Text-to-Image）：创造富有动感和张力的静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 13
+  },
+  {
+    "name": "宁静中的威胁",
+    "category": "组合运镜",
+    "prompt_en": "High angle, wide establishing shot of a sun-drenched, peaceful village nestled in a valley, deep depth of field, idyllic atmosphere. Subtle Dutch angle and gathering storm clouds on the horizon hint at impending doom.",
+    "prompt_zh": "俯角，山谷中阳光普照的宁静村庄广角定场镜头，深景深，田园氛围。微妙的荷兰角和地平线聚集的风暴云暗示即将到来的厄运。",
+    "notes": "文生图（Text-to-Image）：创造富有动感和张力的静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 14
+  },
+  {
+    "name": "亲密与疏离",
+    "category": "组合运镜",
+    "prompt_en": "Split diopter shot: Extreme close-up on one lover's eye in sharp focus (left frame), while the other lover stands distant and slightly out of focus (right frame) in a crowded room (deep DOF elsewhere), conveying emotional distance.",
+    "prompt_zh": "分像镜镜头：极度特写一位情人的眼睛清晰聚焦（左帧），而另一位情人站在拥挤房间中（其他部分深景深）显得疏远且轻微失焦（右帧），传达情感距离。",
+    "notes": "文生图（Text-to-Image）：创造富有动感和张力的静态画面",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 15
+  },
+  {
+    "name": "悬疑开场-手特写",
+    "category": "组合运镜",
+    "prompt_en": "Slow, shaky pull-out from the bloody hand to reveal a dimly lit study, tracking backwards as the camera discovers a shocked face in the foreground, shallow DOF shifting focus to the face.",
+    "prompt_zh": "缓慢、颤抖地从染血的手拉出，展现昏暗的书房，镜头向后移动时发现前景中一张震惊的脸，浅景深将焦点转移到脸上。",
+    "notes": "图生视频（Image-to-Video）：基于输入图片描述动态演变；输入图：悬疑开场-手特写",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 16
+  },
+  {
+    "name": "英雄登场-废墟中景",
+    "category": "组合运镜",
+    "prompt_en": "Hero slowly turns head towards camera with determination. Camera begins a majestic crane shot rising upwards, circling slightly while keeping hero centered, revealing the vast, devastated cityscape behind him. Epic orchestral score swells.",
+    "prompt_zh": "英雄缓缓转头，坚定地望向镜头。相机开始庄严的升降镜头向上抬升，轻微环绕同时保持英雄居中，展现其身后广阔的废墟城市。史诗管弦乐渐强。",
+    "notes": "图生视频（Image-to-Video）：基于输入图片描述动态演变；输入图：英雄登场-废墟中景",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 17
+  },
+  {
+    "name": "发现与揭示-洞穴OTS",
+    "category": "组合运镜",
+    "prompt_en": "Explorer cautiously steps forward into the cave (slight camera jostle). Camera pushes in steadily past the shoulder towards the mysterious object. As we get closer, the object begins to emit a faint, pulsing light. Focus rack to the glowing object.",
+    "prompt_zh": "探险者谨慎地向前踏入洞穴（镜头轻微晃动）。镜头稳稳推进越过肩膀靠近神秘物体。随着靠近，物体开始发出微弱的脉动光芒。焦点转移到发光物体上。",
+    "notes": "图生视频（Image-to-Video）：基于输入图片描述动态演变；输入图：发现与揭示-洞穴OTS",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 18
+  },
+  {
+    "name": "宁静村庄-俯视广角",
+    "category": "组合运镜",
+    "prompt_en": "Slow, smooth zoom in towards the village center. As we get closer, subtle signs of disarray become visible (overturned cart, broken window). Camera then tilts down sharply to ground level, revealing fresh tracks leading into the forest (motion blur on tilt).",
+    "prompt_zh": "缓慢、平滑地推向村庄中心。靠近时，细微的混乱迹象显现（翻倒的推车，破碎的窗户）。镜头随即急速下摇至地面，展现通往森林的新鲜足迹（下摇时有运动模糊）。",
+    "notes": "图生视频（Image-to-Video）：基于输入图片描述动态演变；输入图：宁静村庄-俯视广角",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 19
+  },
+  {
+    "name": "亲密与疏离-分像镜特写",
+    "category": "组合运镜",
+    "prompt_en": "Focus shifts dramatically from the close eye to the distant lover. Camera then executes a slow, smooth dolly move sideways, circling around the close subject, breaking the split diopter effect and revealing the crowded room fully. The distant lover turns and walks away into the crowd.",
+    "prompt_zh": "焦点戏剧性地从特写的眼睛转移到远方情人身上。镜头随即缓慢、平稳地横向移动，环绕特写主体，打破分像镜效果，完整展现拥挤房间。远方情人转身走入人群。",
+    "notes": "图生视频（Image-to-Video）：基于输入图片描述动态演变；输入图：亲密与疏离-分像镜特写",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 20
+  },
+  {
+    "name": "追逐场景",
+    "category": "组合运镜",
+    "prompt_en": "Handheld tracking shot following Runner A closely from behind, shaky and urgent. As they turn a corner, camera whips pan left to reveal Runner B gaining ground in a parallel alley (brief static shot). Cut to (or prompt for): Low angle shot as Runner A jumps over an obstacle, camera tilting up quickly. *注：生成“Cut to”效果可能需要特定工具支持或分步生成。*",
+    "prompt_zh": "手持跟拍镜头紧随奔跑者A身后，晃动且紧迫。当其拐弯时，镜头快速向左摇摄，展现奔跑者B在平行小巷逼近（短暂静止镜头）。切到（或提示）：仰角镜头拍摄奔跑者A跳过障碍，镜头快速上摇。",
+    "notes": "更复杂的动态组合（图生视频为主）；起始图：中景，A在巷口奔跑",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 21
+  },
+  {
+    "name": "对话张力",
+    "category": "组合运镜",
+    "prompt_en": "Camera slowly pushes in on Speaker B's intense expression (shallow DOF). As tension rises, camera begins a very slow orbiting move around the pair, keeping both in frame but shifting perspective. Speaker A suddenly turns towards camera (focus rack), interrupting the orbit.",
+    "prompt_zh": "镜头缓缓推向说话者B紧张的表情（浅景深）。随着张力升级，镜头开始非常缓慢地环绕两人移动，保持双方在画内但改变视角。说话者A突然转向镜头（焦点转移），打断环绕运动。",
+    "notes": "更复杂的动态组合（图生视频为主）；起始图：中景双人对话，A背对镜头，B面对",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 22
+  },
+  {
+    "name": "环境互动",
+    "category": "组合运镜",
+    "prompt_en": "As fingers touch the glyphs, camera tilts up rapidly to reveal glowing runes spreading across the entire monolith (motion blur on tilt). Then, a smooth crane shot pulls up and back, showing the monolith standing alone in a moonlit clearing, energy pulsing outwards in waves (visible ripple effect).",
+    "prompt_zh": "当手指触及符文，镜头急速上摇，展现发光的符文蔓延至整块巨石（上摇时有运动模糊）。接着，流畅的升降镜头拉高并后移，展现巨石孤立于月光林间空地，能量波状向外脉动（可见涟漪效果）。",
+    "notes": "更复杂的动态组合（图生视频为主）；起始图：特写，手轻触古老石碑",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 23
+  },
+  {
+    "name": "主观视角切换",
+    "category": "组合运镜",
+    "prompt_en": "Shaky POV look down at the gun, then look up quickly (motion blur) to see the adversary across the room. Camera cuts to (or simulates cut by rapid movement/transition): Over-the-shoulder shot from adversary's perspective, aiming back. Camera pushes in slightly on the OTS shot, tightening the frame.",
+    "prompt_zh": "颤抖的第一人称视角看向手中的枪，然后快速抬头（运动模糊）看向房间对面的对手。镜头切到（或通过快速移动/转场模拟）：对手视角的过肩镜头，正瞄准回来。镜头在过肩镜头上轻微推进，压缩画面。",
+    "notes": "更复杂的动态组合（图生视频为主）；起始图：第一人称POV，看着自己握枪的手",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 24
+  },
+  {
+    "name": "情绪转变",
+    "category": "组合运镜",
+    "prompt_en": "Slow push-in on the despondent figure, shallow DOF isolating them from the rainy background. Suddenly, a shaft of sunlight breaks through clouds (lighting change). Camera tilts up slowly with the character as they rise, transforming to a low angle heroic framing. Slow zoom out to reveal the sunlit landscape.",
+    "prompt_zh": "缓缓推向雨中蜷缩的沮丧人物，浅景深将其与雨景背景隔离。突然，一束阳光穿透云层（光线变化）。镜头随人物起身缓慢上摇，转变为仰角的英雄式构图。缓慢拉远展现阳光普照的景色。",
+    "notes": "更复杂的动态组合（图生视频为主）；起始图：中景，人物蜷缩在雨中",
+    "image_url": null,
+    "source_doc": "组合运镜2.docx",
+    "sort_order": 25
+  },
+  {
+    "name": "动态镜头系列",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头1:雪山森林，滑雪者入画。镜头2:侧面跟拍推近，滑行动作，雪花飞扬。镜头3:斜俯特写，滑雪板冲刺，雪粉飞溅。镜头4:背面中景摇移，林间穿行，速度感。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-1.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 26
+  },
+  {
+    "name": "快速拉升+航拍镜头",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "金色巨龙缓缓扇动双翼，炽热火焰从口中喷涌而出，镜头迅速上升至高空航拍视角，巨龙身形在画面中迅速缩小，磅礴岩石城堡全貌随之展现。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-2.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 27
+  },
+  {
+    "name": "快速推进+特写",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头快速推进至人物面部，定格特写，聚焦神情细节。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-3.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 28
+  },
+  {
+    "name": "细节与景深镜头",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头1:近景推近，草莓渐入清晰镜头2:定格特写，镜头微移，水珠沿果面缓缓滑落。镜头3:正上方缓升，全画面整齐草莓阵列红绿对比。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-4.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 29
+  },
+  {
+    "name": "环绕镜头",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头从女孩侧脸环绕，缓慢旋转至正面，过程中女孩目光自然转向镜头，发丝微飘，背景虚化，运镜流畅。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-5.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 30
+  },
+  {
+    "name": "航拍镜头+跟随",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "无人机跟随，波光海面与云雾悬崖环绕。以电影级4K画质、HDR光影加持，运镜流畅带细微动态模糊，尽显大电影震撼质感。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-6.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 31
+  },
+  {
+    "name": "推进+上帝视角",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头快速向前推,然后摄像机从较高位置开始,逐渐向下倾斜,上帝视角俯瞰神庙，神庙最终定格在画面中心。真实质感，8k画质",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-7.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 32
+  },
+  {
+    "name": "稳定器跟拍",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "手持稳定器紧随人物奔跑，穿梭在狭窄巷道中，背景墙壁和杂物快速模糊掠过，形成强烈速度感与动感，营造追逐般的视觉体验.",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-8.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 33
+  },
+  {
+    "name": "全景到特写",
+    "category": "特效运镜",
+    "prompt_en": "",
+    "prompt_zh": "镜头1:全景展示;镜头2:中景机甲上半身;镜头3:特写展示机甲头部。真实质感摄影风格，8K写实风格，视觉冲击强烈。",
+    "notes": "中文提示词（原文无英文对照）",
+    "image_url": "images/特效运镜-9.png",
+    "source_doc": "特效运镜.docx",
+    "sort_order": 34
+  },
+  {
+    "name": "危机逼近",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "低角度仰拍，广角镜头中孤独旅人站在悬崖边，狂风卷起斗篷（动态模糊），远处雷暴云吞噬地平线，冷色调闪电撕裂天空，深景深强化环境压迫感",
+    "notes": "文生图组合提示（静态画面）；适用：史诗场景开场；附文生图示例图",
+    "image_url": "images/20组电影级组合运镜提示词-1.png",
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 35
+  },
+  {
+    "name": "赛博窥视",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "倾斜的荷兰角构图，霓虹雨夜街道透过破裂玻璃窗拍摄（窗框前景虚化），倒影中模糊的义眼人像，浅景深聚焦于窗面雨滴，蓝紫色调与高光溢出的霓虹灯牌",
+    "notes": "文生图组合提示（静态画面）；适用：赛博朋克悬疑",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 36
+  },
+  {
+    "name": "时光隧道",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "对称式构图，老式胶片放映机中投射出光束，光束内悬浮着童年照片（微尘粒子效果），放映机外框实焦而光束深处虚化，暖光与冷暗环境对比",
+    "notes": "文生图组合提示（静态画面）；适用：回忆主题海报",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 37
+  },
+  {
+    "name": "【悬崖旅人 → 风暴降临】",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "镜头从低角度缓慢后拉，同时升降机抬升至俯瞰高度，雷电在云层中脉动增强（光效动态），斗篷在狂风中剧烈翻飞（布料模拟），雨幕由远及近席卷画面",
+    "notes": "图生视频动态提示（基于输入图演化）；物理合理性：自然元素运动优先",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 38
+  },
+  {
+    "name": "【赛博窗景 → 义眼觉醒】",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "玻璃窗雨滴滑落特写（流体模拟） → 镜头旋转90度校正角度时，窗内倒影的义眼突然闪烁红光 → 推镜穿过玻璃，街道霓虹爆炸式过曝（镜头光晕动态）",
+    "notes": "图生视频动态提示（基于输入图演化）；关键技术：破窗转场+焦点穿透",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 39
+  },
+  {
+    "name": "【放映机光束 → 记忆回溯】",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "光束内照片开始360度旋转（运动模糊） → 镜头推入照片时触发时空扭曲，老式胶片颗粒覆盖画面 → 拉镜头揭示新场景：照片中的庭院实景化（AI场景扩展）",
+    "notes": "图生视频动态提示（基于输入图演化）；魔法时刻：二维到三维转化",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 40
+  },
+  {
+    "name": "侦探追踪一镜到底",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "起始：天花板俯拍烟灰缸特写（烟缕上升）→ 升降机下降同时平移，展现桌面案发现场地图 → 跟拍手部划过地图轨迹（动态跟踪）→ 甩镜至门边风衣背影，推门时带入门缝外的雨夜街景（环境音效植入提示）",
+    "notes": "高级动态组合技（单镜头长调度）；核心逻辑：道具引导镜头运动",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 41
+  },
+  {
+    "name": "武侠对决能量爆发",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "剑尖对峙大特写（金属寒光）→ 极速拉镜头展现全景，双侠崖顶对立 → 环绕镜头加速旋转中，落叶悬停（粒子冻结）→ 突然俯冲镜头贴地掠过，剑气触发地面碎石浮空（动力学模拟）",
+    "notes": "高级动态组合技（单镜头长调度）；物理重点：慢速爆发→高速运动",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 42
+  },
+  {
+    "name": "时间切片",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "咖啡馆固定机位，行人走动产生拖影残像（运动模糊MAX），唯中心座位老人保持清晰，窗外昼夜交替加速流转（光影时变）",
+    "notes": "特殊效果融合提示；适用：时间哲学主题",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 43
+  },
+  {
+    "name": "次元撕裂",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "手持镜头跟拍少女奔跑，墙面涂鸦突然液化，伸出赛博手臂（材质异化）→ 镜头被拽入裂缝，画面90度翻转后进入蒸汽朋克实验室（重力转向提示词）",
+    "notes": "特殊效果融合提示；关键技术：维度过渡特效",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 44
+  },
+  {
+    "name": "诀别之泪",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "过肩镜头凝视病床（心电监护仪虚焦前景），泪水滴落慢镜特写（液体表面反射记忆碎片）→ 泪珠撞击地面瞬间切换至：雨滴落入战壕积水（战场转场）",
+    "notes": "情感叙事组合包；声效提示：心跳声→爆炸声",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 45
+  },
+  {
+    "name": "AI觉醒",
+    "category": "电影级组合",
+    "prompt_en": "",
+    "prompt_zh": "机器人眼部特写（机械虹膜伸缩对焦）→ 拉镜头揭示镜面反射中的人类观察者 → 突然镜头翻转主观视角，人类影像被数据流覆盖（数字入侵效果）",
+    "notes": "情感叙事组合包",
+    "image_url": null,
+    "source_doc": "20组电影级组合运镜提示词.docx",
+    "sort_order": 46
+  },
+  {
+    "name": "推镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从远景缓慢推向人物，聚焦在穿着白色短上衣配粉色蝴蝶结、白色短裙、肉色丝袜和裸色高跟鞋的女性身上，展现整体穿搭造型。",
+    "notes": "服装/人物展示运镜 · 开场类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 47
+  },
+  {
+    "name": "拉镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从人物特写开始，缓缓拉开，呈现出人物在简约室内背景中自拍的全貌。",
+    "notes": "服装/人物展示运镜 · 开场类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 48
+  },
+  {
+    "name": "升镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从人物脚部开始，沿着腿部、身体逐渐上升，展示整套穿搭细节。",
+    "notes": "服装/人物展示运镜 · 开场类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 49
+  },
+  {
+    "name": "平移镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物在画面中横向移动，镜头跟随，凸显身材曲线与服装的贴合感。",
+    "notes": "服装/人物展示运镜 · 主体展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 50
+  },
+  {
+    "name": "环绕镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "围绕人物进行 360 度环绕拍摄，全方位展示服装款式和整体造型。",
+    "notes": "服装/人物展示运镜 · 主体展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 51
+  },
+  {
+    "name": "跟镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "跟随人物抬手整理衣服、拿手机自拍等动作，捕捉动态细节。",
+    "notes": "服装/人物展示运镜 · 主体展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 52
+  },
+  {
+    "name": "特写推镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "先特写拍摄粉色波点蝴蝶结，再缓慢推远展示上衣全貌。",
+    "notes": "服装/人物展示运镜 · 细节刻画类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 53
+  },
+  {
+    "name": "特写拉镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从高跟鞋鞋尖特写开始，慢慢拉开展示腿部及全身穿搭。",
+    "notes": "服装/人物展示运镜 · 细节刻画类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 54
+  },
+  {
+    "name": "摇镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从人物脸部摇到全身，重点突出服装搭配。",
+    "notes": "服装/人物展示运镜 · 细节刻画类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 55
+  },
+  {
+    "name": "俯拍镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从上方俯拍人物拿手机自拍的画面，展示人与手机的互动及穿搭效果。",
+    "notes": "服装/人物展示运镜 · 互动展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 56
+  },
+  {
+    "name": "仰拍镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从下往上仰拍人物，突出身材比例和服装的时尚感。",
+    "notes": "服装/人物展示运镜 · 互动展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 57
+  },
+  {
+    "name": "切换镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在人物不同角度的自拍动作间切换，增加画面丰富度。",
+    "notes": "服装/人物展示运镜 · 互动展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 58
+  },
+  {
+    "name": "逆光拍摄",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "利用逆光效果，勾勒人物轮廓，使白色服装更具层次感。",
+    "notes": "服装/人物展示运镜 · 光影氛围类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 59
+  },
+  {
+    "name": "侧光拍摄",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从侧面打光，突出人物身材曲线和服装质感。",
+    "notes": "服装/人物展示运镜 · 光影氛围类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 60
+  },
+  {
+    "name": "柔光拍摄",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "使用柔光，营造温馨柔和氛围，展示服装的细腻。",
+    "notes": "服装/人物展示运镜 · 光影氛围类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 61
+  },
+  {
+    "name": "慢动作镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物轻微转身等动作使用慢动作，展现服装的流动感。",
+    "notes": "服装/人物展示运镜 · 动态效果类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 62
+  },
+  {
+    "name": "快动作镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物快速抬手整理头发，快动作展示增加趣味性。",
+    "notes": "服装/人物展示运镜 · 动态效果类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 63
+  },
+  {
+    "name": "定格镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物某一自拍动作定格，突出造型瞬间。",
+    "notes": "服装/人物展示运镜 · 动态效果类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 64
+  },
+  {
+    "name": "淡入淡出镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从一个室内场景淡入到另一个相似室内场景，人物位置变化展示穿搭。",
+    "notes": "服装/人物展示运镜 · 场景转换类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 65
+  },
+  {
+    "name": "闪切镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "快速闪切不同角度的人物画面，制造视觉冲击。",
+    "notes": "服装/人物展示运镜 · 场景转换类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 66
+  },
+  {
+    "name": "遮罩镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "利用圆形遮罩从人物局部过渡到全身。",
+    "notes": "服装/人物展示运镜 · 场景转换类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 67
+  },
+  {
+    "name": "分屏镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "左右分屏，一边展示人物正面，一边展示侧面，对比不同角度穿搭效果。",
+    "notes": "服装/人物展示运镜 · 对比展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 68
+  },
+  {
+    "name": "画中画镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "小画面展示服装细节，大画面展示人物全身，形成对比。",
+    "notes": "服装/人物展示运镜 · 对比展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 69
+  },
+  {
+    "name": "叠化镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "将人物不同动作的画面叠化，展示服装动态效果。",
+    "notes": "服装/人物展示运镜 · 对比展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 70
+  },
+  {
+    "name": "移轴镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "将室内背景虚化，突出人物与服装，营造独特氛围。",
+    "notes": "服装/人物展示运镜 · 环境融合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 71
+  },
+  {
+    "name": "全景深镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "让人物和背景都清晰，展示整体环境与穿搭的融合。",
+    "notes": "服装/人物展示运镜 · 环境融合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 72
+  },
+  {
+    "name": "浅景深镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "虚化背景，突出人物主体及服装。",
+    "notes": "服装/人物展示运镜 · 环境融合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 73
+  },
+  {
+    "name": "微笑特写镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "捕捉人物微笑瞬间，配合服装展示愉悦心情。",
+    "notes": "服装/人物展示运镜 · 情绪表达类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 74
+  },
+  {
+    "name": "自信眼神镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "特写拍摄人物自信的眼神，展现服装带来的气场。",
+    "notes": "服装/人物展示运镜 · 情绪表达类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 75
+  },
+  {
+    "name": "轻松姿态镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物呈现轻松姿态，展示服装的舒适与时尚。",
+    "notes": "服装/人物展示运镜 · 情绪表达类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 76
+  },
+  {
+    "name": "旋转镜头 + 慢动作",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物旋转并配合慢动作，展示服装的飘逸感。",
+    "notes": "服装/人物展示运镜 · 创意组合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 77
+  },
+  {
+    "name": "推镜头 + 特写",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "先推近再特写拍摄服装上的细节装饰。",
+    "notes": "服装/人物展示运镜 · 创意组合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 78
+  },
+  {
+    "name": "拉镜头 + 全景",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "拉镜头后接全景画面，展示人物与环境。",
+    "notes": "服装/人物展示运镜 · 创意组合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 79
+  },
+  {
+    "name": "循环平移镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "多次重复平移镜头，加深观众对服装的印象。",
+    "notes": "服装/人物展示运镜 · 循环展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 80
+  },
+  {
+    "name": "循环环绕镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "多次环绕拍摄，全方位展示服装特点。",
+    "notes": "服装/人物展示运镜 · 循环展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 81
+  },
+  {
+    "name": "循环切换镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "不断切换人物不同动作画面，强化视觉记忆。",
+    "notes": "服装/人物展示运镜 · 循环展示类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 82
+  },
+  {
+    "name": "脚部特写 - 全身镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从脚部特写开始，逐渐展示到全身。",
+    "notes": "服装/人物展示运镜 · 局部到整体类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 83
+  },
+  {
+    "name": "手部特写 - 全身镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "特写手部动作后展示全身穿搭。",
+    "notes": "服装/人物展示运镜 · 局部到整体类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 84
+  },
+  {
+    "name": "头部特写 - 全身镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "先特写头部，再展示全身造型。",
+    "notes": "服装/人物展示运镜 · 局部到整体类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 85
+  },
+  {
+    "name": "模拟第三人视角",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "像旁人视角一样拍摄人物自拍过程。",
+    "notes": "服装/人物展示运镜 · 模拟视角类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 86
+  },
+  {
+    "name": "模拟鸟瞰视角",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "从高空模拟鸟瞰人物自拍场景。",
+    "notes": "服装/人物展示运镜 · 模拟视角类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 87
+  },
+  {
+    "name": "模拟低角度仰视视角",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "贴近地面仰视拍摄人物。",
+    "notes": "服装/人物展示运镜 · 模拟视角类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 88
+  },
+  {
+    "name": "转身 + 摆姿镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物转身同时摆出造型，展示服装多角度效果。",
+    "notes": "服装/人物展示运镜 · 组合动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 89
+  },
+  {
+    "name": "抬手 + 移步镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物抬手整理衣服并移动脚步，展示服装动态感。",
+    "notes": "服装/人物展示运镜 · 组合动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 90
+  },
+  {
+    "name": "坐下 + 站起镜头",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "展示坐下和站起过程中服装的变化。",
+    "notes": "服装/人物展示运镜 · 组合动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 91
+  },
+  {
+    "name": "冷光背景下的暖色调服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在冷光环境中突出暖色调服装。",
+    "notes": "服装/人物展示运镜 · 色彩对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 92
+  },
+  {
+    "name": "暖光背景下的冷色调服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在暖光环境中展示冷色调服装。",
+    "notes": "服装/人物展示运镜 · 色彩对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 93
+  },
+  {
+    "name": "彩色背景下的黑白服装对比",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在彩色背景下展示黑白服装。",
+    "notes": "服装/人物展示运镜 · 色彩对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 94
+  },
+  {
+    "name": "丝绸背景下的棉质服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在丝绸背景下展示棉质服装质感。",
+    "notes": "服装/人物展示运镜 · 材质对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 95
+  },
+  {
+    "name": "毛绒背景下的皮革服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在毛绒背景展示皮革服装。",
+    "notes": "服装/人物展示运镜 · 材质对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 96
+  },
+  {
+    "name": "金属背景下的麻质服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在金属背景展示麻质服装。",
+    "notes": "服装/人物展示运镜 · 材质对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 97
+  },
+  {
+    "name": "复古背景下的现代服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在复古背景展示现代风格服装。",
+    "notes": "服装/人物展示运镜 · 风格对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 98
+  },
+  {
+    "name": "未来感背景下的传统服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在未来感背景展示传统服装。",
+    "notes": "服装/人物展示运镜 · 风格对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 99
+  },
+  {
+    "name": "田园风背景下的都市服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在田园风背景展示都市风格服装。",
+    "notes": "服装/人物展示运镜 · 风格对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 100
+  },
+  {
+    "name": "清晨光线中的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在清晨柔和光线中展示服装。",
+    "notes": "服装/人物展示运镜 · 时间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 101
+  },
+  {
+    "name": "正午强光下的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在正午强光下展示服装效果。",
+    "notes": "服装/人物展示运镜 · 时间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 102
+  },
+  {
+    "name": "傍晚暖光中的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在傍晚暖光中展示服装。",
+    "notes": "服装/人物展示运镜 · 时间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 103
+  },
+  {
+    "name": "晴天户外服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在晴天户外展示服装。",
+    "notes": "服装/人物展示运镜 · 天气变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 104
+  },
+  {
+    "name": "阴天户外服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在阴天户外展示服装。",
+    "notes": "服装/人物展示运镜 · 天气变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 105
+  },
+  {
+    "name": "雨中服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在雨中展示服装防水或防雨效果。",
+    "notes": "服装/人物展示运镜 · 天气变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 106
+  },
+  {
+    "name": "春季花园中服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在春季花园展示服装。",
+    "notes": "服装/人物展示运镜 · 季节变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 107
+  },
+  {
+    "name": "夏季海滩服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在夏季海滩展示服装。",
+    "notes": "服装/人物展示运镜 · 季节变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 108
+  },
+  {
+    "name": "秋季枫叶林服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在秋季枫叶林展示服装。",
+    "notes": "服装/人物展示运镜 · 季节变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 109
+  },
+  {
+    "name": "狭小空间服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在狭小空间展示服装穿搭。",
+    "notes": "服装/人物展示运镜 · 空间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 110
+  },
+  {
+    "name": "开阔空间服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在开阔空间展示服装。",
+    "notes": "服装/人物展示运镜 · 空间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 111
+  },
+  {
+    "name": "封闭空间服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在封闭空间展示服装。",
+    "notes": "服装/人物展示运镜 · 空间变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 112
+  },
+  {
+    "name": "实焦人物 + 虚焦背景",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物实焦，背景虚化展示服装。",
+    "notes": "服装/人物展示运镜 · 虚实结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 113
+  },
+  {
+    "name": "虚焦人物 + 实焦背景",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物虚化，背景实焦形成对比。",
+    "notes": "服装/人物展示运镜 · 虚实结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 114
+  },
+  {
+    "name": "半虚半实画面",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物部分虚焦，部分实焦展示服装。",
+    "notes": "服装/人物展示运镜 · 虚实结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 115
+  },
+  {
+    "name": "动态人物 + 静态背景",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物动态，背景静态展示服装。",
+    "notes": "服装/人物展示运镜 · 动静结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 116
+  },
+  {
+    "name": "静态人物 + 动态背景",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物静态，背景动态展示服装。",
+    "notes": "服装/人物展示运镜 · 动静结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 117
+  },
+  {
+    "name": "人物与背景都动态",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物和背景都呈动态展示服装。",
+    "notes": "服装/人物展示运镜 · 动静结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 118
+  },
+  {
+    "name": "快速动作 + 慢速回放",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物快速动作后慢速回放展示服装。",
+    "notes": "服装/人物展示运镜 · 快慢结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 119
+  },
+  {
+    "name": "慢速动作 + 快速切换",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "慢速动作配合快速画面切换展示服装。",
+    "notes": "服装/人物展示运镜 · 快慢结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 120
+  },
+  {
+    "name": "快慢动作交替",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "快慢动作交替展示服装特点。",
+    "notes": "服装/人物展示运镜 · 快慢结合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 121
+  },
+  {
+    "name": "大场景中的小人物服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在大场景中展示小人物服装。",
+    "notes": "服装/人物展示运镜 · 大小对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 122
+  },
+  {
+    "name": "小场景中的大人物服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "在小场景中展示大人物服装。",
+    "notes": "服装/人物展示运镜 · 大小对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 123
+  },
+  {
+    "name": "大小道具搭配展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "用大小道具搭配展示服装。",
+    "notes": "服装/人物展示运镜 · 大小对比类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 124
+  },
+  {
+    "name": "轻柔音乐下的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "配合轻柔音乐展示服装。",
+    "notes": "服装/人物展示运镜 · 声音配合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 125
+  },
+  {
+    "name": "动感音乐下的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "配合动感音乐展示服装。",
+    "notes": "服装/人物展示运镜 · 声音配合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 126
+  },
+  {
+    "name": "环境音效下的服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "配合环境音效展示服装。",
+    "notes": "服装/人物展示运镜 · 声音配合类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 127
+  },
+  {
+    "name": "微笑 - 大笑 - 浅笑服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "伴随不同笑容展示服装。",
+    "notes": "服装/人物展示运镜 · 表情变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 128
+  },
+  {
+    "name": "惊讶 - 平静 - 开心服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "伴随不同表情展示服装。",
+    "notes": "服装/人物展示运镜 · 表情变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 129
+  },
+  {
+    "name": "严肃 - 俏皮 - 温柔服装展示",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "伴随不同神态展示服装。",
+    "notes": "服装/人物展示运镜 · 表情变化类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 130
+  },
+  {
+    "name": "手拿花束展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物手拿花束展示服装。",
+    "notes": "服装/人物展示运镜 · 道具辅助类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 131
+  },
+  {
+    "name": "佩戴帽子展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物佩戴帽子展示服装。",
+    "notes": "服装/人物展示运镜 · 道具辅助类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 132
+  },
+  {
+    "name": "撑伞展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "人物撑伞展示服装。",
+    "notes": "服装/人物展示运镜 · 道具辅助类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 133
+  },
+  {
+    "name": "与朋友互动展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "和朋友互动过程中展示服装。",
+    "notes": "服装/人物展示运镜 · 人物互动类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 134
+  },
+  {
+    "name": "与宠物互动展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "和宠物互动时展示服装。",
+    "notes": "服装/人物展示运镜 · 人物互动类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 135
+  },
+  {
+    "name": "与路人互动展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "和路人互动展示服装。",
+    "notes": "服装/人物展示运镜 · 人物互动类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 136
+  },
+  {
+    "name": "简单舞步展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "用简单舞蹈步伐展示服装。",
+    "notes": "服装/人物展示运镜 · 舞蹈动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 137
+  },
+  {
+    "name": "旋转舞蹈动作展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "通过旋转舞蹈动作展示服装。",
+    "notes": "服装/人物展示运镜 · 舞蹈动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 138
+  },
+  {
+    "name": "摆手舞蹈动作展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "以摆手舞蹈动作展示服装。",
+    "notes": "服装/人物展示运镜 · 舞蹈动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 139
+  },
+  {
+    "name": "慢跑动作展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "通过慢跑动作展示服装。",
+    "notes": "服装/人物展示运镜 · 运动动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 140
+  },
+  {
+    "name": "瑜伽动作展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "用瑜伽动作展示服装。",
+    "notes": "服装/人物展示运镜 · 运动动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 141
+  },
+  {
+    "name": "伸展动作展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "通过伸展动作展示服装。",
+    "notes": "服装/人物展示运镜 · 运动动作类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 142
+  },
+  {
+    "name": "光影闪烁展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "利用光影闪烁效果展示服装。",
+    "notes": "服装/人物展示运镜 · 光影特效类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 143
+  },
+  {
+    "name": "光影渐变展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "通过光影渐变展示服装。",
+    "notes": "服装/人物展示运镜 · 光影特效类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 144
+  },
+  {
+    "name": "光影斑驳展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "用光影斑驳效果展示服装。",
+    "notes": "服装/人物展示运镜 · 光影特效类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 145
+  },
+  {
+    "name": "特效叠加展示服装",
+    "category": "基础运镜",
+    "prompt_en": "",
+    "prompt_zh": "叠加特效如星星、花瓣等展示服装 。",
+    "notes": "服装/人物展示运镜 · 光影特效类",
+    "image_url": null,
+    "source_doc": "运镜提示词.doc",
+    "sort_order": 146
+  }
+]
