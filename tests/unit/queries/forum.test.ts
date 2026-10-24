@@ -3,8 +3,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { forums, replies, threads, users } from "@/lib/db/schema";
 import {
+  getForumBySlug,
   getThreadById,
   listForums,
+  listLatestThreads,
   listReplies,
   listThreads,
   THREADS_PAGE_SIZE,
@@ -75,6 +77,25 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
       await expect(
         listReplies("0b2b0e35-0a44-4a5e-a3af-6d3349cd00f1"),
       ).resolves.toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("listLatestThreads 返回空数组", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    try {
+      await expect(listLatestThreads(10)).resolves.toEqual([]);
+      await expect(listLatestThreads(NaN)).resolves.toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("getForumBySlug 返回 null", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    try {
+      await expect(getForumBySlug("creation")).resolves.toBeNull();
     } finally {
       vi.unstubAllEnvs();
     }
@@ -275,6 +296,43 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(rows.every((r) => r.status === "visible")).toBe(true);
       expect(rows[0]?.contentMd).toBe("一楼");
       expect(rows[0]?.authorName).toBe(`任务二一作者-${uniq}`);
+    });
+
+    it("listLatestThreads：last_reply 倒序、hidden 排除、带板块名", async () => {
+      // limit 放大：库中可能存在其他帖，断言只圈探针相对顺序
+      const rows = await listLatestThreads(50);
+      const probe = rows.filter((t) => threadIds.includes(t.id));
+      // lastReplyAt 探针序：P2(-5s) → P3(-10s) → P1(-20s)；P4 hidden 不出现
+      expect(probe.map((t) => t.id)).toEqual([
+        regularNewerReplyId,
+        regularNewerCreatedId,
+        pinnedId,
+      ]);
+      expect(rows.some((t) => t.id === threadIds[3])).toBe(false);
+      // join 板块：forumSlug / forumName 齐备
+      expect(probe[0]).toMatchObject({
+        forumSlug: slugA,
+        forumName: `板块甲-${uniq}`,
+        title: `最后回复最新帖-${uniq}`,
+      });
+    });
+
+    it("listLatestThreads：limit 截断条数", async () => {
+      const rows = await listLatestThreads(2);
+      expect(rows.length).toBeLessThanOrEqual(2);
+    });
+
+    it("getForumBySlug：命中探针板块返回行，不存在返回 null", async () => {
+      const hit = await getForumBySlug(slugA);
+      expect(hit).not.toBeNull();
+      expect(hit).toMatchObject({
+        slug: slugA,
+        name: `板块甲-${uniq}`,
+        description: "探针",
+        threadCount: expect.any(Number),
+        replyCount: expect.any(Number),
+      });
+      expect(await getForumBySlug(`p2q-不存在-${uniq}`)).toBeNull();
     });
   },
 );

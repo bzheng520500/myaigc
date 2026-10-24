@@ -159,6 +159,77 @@ export async function getThreadById(
   return { thread: row.thread, authorName: row.authorName, forumSlug: row.forumSlug };
 }
 
+/** 论坛首页「最新动态」行：帖子行 + 所属板块（跨板块跳转链接消费） */
+export type LatestThreadItem = ThreadListItem & {
+  forumSlug: string;
+  forumName: string;
+};
+
+/** 全站最新帖（论坛首页）：last_reply_at 倒序、hidden 排除（Task 2 追加） */
+export async function listLatestThreads(
+  limit: number,
+): Promise<LatestThreadItem[]> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
+
+  // 无数据库环境（如纯静态构建）：返回空列表
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
+
+  // limit 兜底与 listThreads 的 page 同风格：NaN / <1 归 10
+  const safeLimit = Math.max(1, Math.floor(limit)) || 10;
+
+  return db
+    .select({
+      id: threads.id,
+      title: threads.title,
+      isPinned: threads.isPinned,
+      isLocked: threads.isLocked,
+      replyCount: threads.replyCount,
+      viewCount: threads.viewCount,
+      lastReplyAt: threads.lastReplyAt,
+      createdAt: threads.createdAt,
+      authorId: threads.authorId,
+      authorName: users.name,
+      forumSlug: forums.slug,
+      forumName: forums.name,
+    })
+    .from(threads)
+    .innerJoin(users, eq(threads.authorId, users.id))
+    .innerJoin(forums, eq(threads.forumId, forums.id))
+    .where(ne(threads.status, "hidden"))
+    .orderBy(desc(threads.lastReplyAt))
+    .limit(safeLimit);
+}
+
+/** 板块单查（板块页 notFound 判定用，Task 2 追加） */
+export async function getForumBySlug(slug: string): Promise<ForumRow | null> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
+
+  // 无数据库环境（如纯静态构建）：视为不存在
+  if (!process.env.DATABASE_URL) {
+    return null;
+  }
+
+  const [row] = await db
+    .select({
+      id: forums.id,
+      slug: forums.slug,
+      name: forums.name,
+      description: forums.description,
+      sortOrder: forums.sortOrder,
+      threadCount: forums.threadCount,
+      replyCount: forums.replyCount,
+    })
+    .from(forums)
+    .where(eq(forums.slug, slug))
+    .limit(1);
+
+  return row ?? null;
+}
+
 /** 帖子楼层列表：floor_number 升序，只返回 visible */
 export async function listReplies(threadId: string): Promise<ReplyListItem[]> {
   "use cache";
