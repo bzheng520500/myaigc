@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { fontSans, fontSerif } from "@/lib/fonts";
 import "./globals.css";
 
@@ -14,7 +16,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${fontSans.variable} ${fontSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)] font-sans">
+        <SiteHeader />
         {children}
+        <SiteFooter />
       </body>
     </html>
   );
