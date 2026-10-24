@@ -20,13 +20,14 @@ export type CreateCommentError =
   | "not_found"
   | "empty";
 
-/** listComments / 评论区消费的单条评论（join users 后的投影） */
+/** listComments / 评论区消费的单条评论（join users 后的投影；likeCount 供点赞按钮初值，Phase 3） */
 export type CommentItem = {
   id: string;
   content: string;
   createdAt: Date;
   authorName: string | null;
   authorImage: string | null;
+  likeCount: number;
 };
 
 /**

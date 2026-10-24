@@ -3,6 +3,8 @@ import type { Session } from "next-auth";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
+import { FavoriteButton } from "@/components/favorite-button";
+import { LikeButton } from "@/components/like-button";
 import MarkdownView from "@/components/markdown-view";
 import { ReplyItem } from "@/components/reply-item";
 import { ReplyForm } from "@/components/reply-form";
@@ -79,6 +81,13 @@ async function ThreadPageContent({ params }: ThreadPageProps) {
           </time>
           <span aria-hidden="true">·</span>
           <span>{thread.viewCount} 次浏览</span>
+          {/* Phase 3 点赞/收藏：client 组件挂载后自取个性化状态 */}
+          <LikeButton
+            targetType="thread"
+            targetId={thread.id}
+            initialCount={thread.likeCount}
+          />
+          <FavoriteButton targetType="thread" targetId={thread.id} />
         </div>
       </header>
 
@@ -92,7 +101,17 @@ async function ThreadPageContent({ params }: ThreadPageProps) {
         {replies.length > 0 ? (
           <ol className="flex flex-col">
             {replies.map((reply) => (
-              <ReplyItem key={reply.id} reply={reply} />
+              <ReplyItem
+                key={reply.id}
+                reply={reply}
+                likeSlot={
+                  <LikeButton
+                    targetType="reply"
+                    targetId={reply.id}
+                    initialCount={reply.likeCount}
+                  />
+                }
+              />
             ))}
           </ol>
         ) : (

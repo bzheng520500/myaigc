@@ -136,6 +136,7 @@ export async function listComments(
       createdAt: comments.createdAt,
       authorName: users.name,
       authorImage: users.image,
+      likeCount: comments.likeCount,
     })
     .from(comments)
     .innerJoin(users, eq(comments.userId, users.id))

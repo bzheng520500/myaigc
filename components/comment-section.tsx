@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { LikeButton } from "@/components/like-button";
 import { createComment } from "@/lib/actions/comments";
 import type { CommentItem, CommentTargetType } from "@/lib/actions/comments-core";
 
@@ -86,6 +87,7 @@ export function CommentSection({
             createdAt: new Date(),
             authorName: currentUserName ?? null,
             authorImage: null,
+            likeCount: 0,
           },
           ...prev,
         ]);
@@ -162,6 +164,14 @@ export function CommentSection({
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {comment.content}
               </p>
+              {/* Phase 3 评论点赞：client 组件直接内嵌（本组件已是 client） */}
+              <div>
+                <LikeButton
+                  targetType="comment"
+                  targetId={comment.id}
+                  initialCount={comment.likeCount}
+                />
+              </div>
             </li>
           ))}
         </ul>

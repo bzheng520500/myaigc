@@ -41,7 +41,7 @@ export type ThreadListItem = {
   authorName: string | null;
 };
 
-/** 帖子详情页楼层行（只含 visible） */
+/** 帖子详情页楼层行（只含 visible；likeCount 供楼层点赞按钮初值，Phase 3） */
 export type ReplyListItem = {
   id: string;
   floorNumber: number;
@@ -50,6 +50,7 @@ export type ReplyListItem = {
   authorId: string;
   authorName: string | null;
   status: string;
+  likeCount: number;
 };
 
 /** threads.id 为 uuid 列：非法格式直接视为不存在，避免 PG 抛 invalid input syntax */
@@ -249,6 +250,7 @@ export async function listReplies(threadId: string): Promise<ReplyListItem[]> {
       authorId: replies.authorId,
       authorName: users.name,
       status: replies.status,
+      likeCount: replies.likeCount,
     })
     .from(replies)
     .innerJoin(users, eq(replies.authorId, users.id))

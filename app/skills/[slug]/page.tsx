@@ -4,6 +4,8 @@ import { after } from "next/server";
 import { Suspense } from "react";
 import { CommentSection } from "@/components/comment-section";
 import { CopyButton, DownloadButton } from "@/components/copy-button";
+import { FavoriteButton } from "@/components/favorite-button";
+import { LikeButton } from "@/components/like-button";
 import MarkdownView from "@/components/markdown-view";
 import { Badge } from "@/components/ui/badge";
 import { listComments } from "@/lib/actions/comments";
@@ -125,8 +127,8 @@ async function SkillDetailContent({ params }: SkillDetailPageProps) {
           </time>
         </div>
 
-        {/* 操作行：复制全文（计数上报）/ 下载 .md */}
-        <div className="flex items-center gap-2">
+        {/* 操作行：复制全文（计数上报）/ 下载 .md / 点赞收藏（Phase 3） */}
+        <div className="flex flex-wrap items-center gap-2">
           <CopyButton
             text={skill.contentMd}
             label="复制全文"
@@ -136,6 +138,12 @@ async function SkillDetailContent({ params }: SkillDetailPageProps) {
             text={skill.contentMd}
             filename={`${skill.slug}.md`}
           />
+          <LikeButton
+            targetType="skill"
+            targetId={skill.id}
+            initialCount={skill.likeCount}
+          />
+          <FavoriteButton targetType="skill" targetId={skill.id} />
         </div>
       </header>
 
