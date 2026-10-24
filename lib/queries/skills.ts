@@ -1,8 +1,8 @@
-import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 import { cacheLife } from "next/cache";
 import { REVALIDATE_CONTENT } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { skills, type Skill } from "@/lib/db/schema";
+import { skills, users, type Skill } from "@/lib/db/schema";
 
 /**
  * Skill 库列表查询（Task 6）。
@@ -95,4 +95,41 @@ export async function listCategories(): Promise<string[]> {
     .orderBy(skills.category);
 
   return rows.map((row) => row.category);
+}
+
+/** 详情页消费的完整行（Task 7）：全部列 + 作者（内置内容无作者 → null） */
+export type SkillFullRow = Skill & {
+  author: { name: string | null; email: string } | null;
+};
+
+/**
+ * 按 slug 取 Skill 详情（Task 7）。
+ *
+ * status='removed' 或不存在 → null；缓存策略与 listSkills 一致（300s ISR）。
+ */
+export async function getSkillBySlug(slug: string): Promise<SkillFullRow | null> {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
+
+  // 无数据库环境（如纯静态构建）：视为不存在
+  if (!process.env.DATABASE_URL) {
+    return null;
+  }
+
+  const [row] = await db
+    .select({ skill: skills, authorName: users.name, authorEmail: users.email })
+    .from(skills)
+    .leftJoin(users, eq(skills.authorId, users.id))
+    .where(and(eq(skills.slug, slug), ne(skills.status, "removed")))
+    .limit(1);
+
+  if (!row) return null;
+
+  return {
+    ...row.skill,
+    author:
+      row.skill.authorId && row.authorEmail
+        ? { name: row.authorName, email: row.authorEmail }
+        : null,
+  };
 }

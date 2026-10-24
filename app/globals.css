@@ -194,3 +194,174 @@
     @apply font-sans;
   }
 }
+
+/* ============================================================
+   Markdown 正文排版（Task 7，MarkdownView 挂 .markdown-body）
+   ------------------------------------------------------------
+   项目未装 @tailwindcss/typography，手写排版样式；
+   消费设计 token（--fg / --fg-muted / --border / --paper-* / --clay-*）
+   ============================================================ */
+
+.markdown-body {
+  color: var(--fg);
+  font-size: 1rem;
+  line-height: 1.85;
+  word-break: break-word;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* 标题层级：衬线字族（与全站大标题一致） */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.75em 0 0.75em;
+  font-family: var(--font-serif), "Noto Serif SC", "Songti SC", "SimSun",
+    ui-serif, serif;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.markdown-body h1 {
+  font-size: 1.75rem;
+}
+
+.markdown-body h2 {
+  font-size: 1.4rem;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown-body h3 {
+  font-size: 1.2rem;
+}
+
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 1.05rem;
+}
+
+.markdown-body p {
+  margin: 0.75em 0;
+}
+
+/* 列表：tailwind preflight 重置了 list-style，这里恢复 */
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
+.markdown-body li {
+  margin: 0.25em 0;
+}
+
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin: 0.25em 0;
+}
+
+/* GFM 任务列表：去掉项目符号 */
+.markdown-body li.task-list-item,
+.markdown-body li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.25em;
+}
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+
+/* 引用块 */
+.markdown-body blockquote {
+  margin: 1em 0;
+  padding: 0.25em 0 0.25em 1em;
+  border-left: 3px solid var(--clay-500);
+  color: var(--fg-muted);
+}
+
+/* 行内代码与代码块 */
+.markdown-body code {
+  padding: 0.15em 0.4em;
+  border-radius: 0.375rem;
+  background: var(--paper-100);
+  font-size: 0.875em;
+}
+
+.markdown-body pre {
+  margin: 1em 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--paper-100);
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.875rem;
+}
+
+/* GFM 表格 */
+.markdown-body table {
+  margin: 1em 0;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown-body thead th {
+  background: var(--paper-100);
+  font-weight: 600;
+}
+
+.markdown-body tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--paper-50) 60%, var(--paper-100));
+}
+
+/* 链接 / 图片 / 分隔线 / 删除线 */
+.markdown-body a {
+  color: var(--clay-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+
+.markdown-body hr {
+  margin: 2em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
