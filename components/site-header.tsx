@@ -37,10 +37,43 @@ async function signOutAction() {
   await signOut({ redirectTo: "/" });
 }
 
-/** 邮箱前缀作为展示用户名（schema 注释：name 默认取邮箱前缀） */
+/** 邮箱前缀作为展示用户名兜底（schema 注释：name 默认取邮箱前缀） */
 function emailPrefix(email: string | null | undefined): string | null {
   if (!email) return null;
   return email.split("@")[0] || null;
+}
+
+const USER_MENU_ITEM =
+  "block w-full px-3 py-2 text-left text-sm text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg";
+
+/**
+ * 登录用户菜单：details/summary 原生下拉（与 admin 新建表单同模式，
+ * 无 client 组件化 / 无 JS）；「退出」保留 form + server action signOut。
+ */
+function UserMenu({ userName, userId }: { userName: string; userId: string }) {
+  return (
+    <details className="relative">
+      <summary className="flex cursor-pointer list-none items-center gap-1 rounded-full px-2 py-1 text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg [&::-webkit-details-marker]:hidden">
+        <span className="max-w-32 truncate">{userName}</span>
+        <span className="text-xs" aria-hidden="true">
+          ▾
+        </span>
+      </summary>
+      <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-lg border border-border bg-[var(--bg)] py-1 shadow-md">
+        <Link href={`/u/${userId}`} className={USER_MENU_ITEM}>
+          个人主页
+        </Link>
+        <Link href="/settings" className={USER_MENU_ITEM}>
+          设置
+        </Link>
+        <form action={signOutAction}>
+          <button type="submit" className={USER_MENU_ITEM}>
+            退出
+          </button>
+        </form>
+      </div>
+    </details>
+  );
 }
 
 async function HeaderAuthArea() {
@@ -51,27 +84,16 @@ async function HeaderAuthArea() {
     session = null;
   }
 
-  const userName = emailPrefix(session?.user?.email);
+  // session callback（lib/auth.ts）已注入 user.id；name 为 Auth.js
+  // 默认回填（users 表 name 列，默认邮箱前缀），email 前缀兜底
+  const userName =
+    session?.user?.name ?? emailPrefix(session?.user?.email);
+  const userId = session?.user?.id;
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      {userName ? (
-        <>
-          <span
-            className="max-w-32 truncate text-fg-muted"
-            title={session?.user?.email ?? undefined}
-          >
-            {userName}
-          </span>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="transition-colors hover:text-accent-soft-fg"
-            >
-              退出
-            </button>
-          </form>
-        </>
+      {userName && userId ? (
+        <UserMenu userName={userName} userId={userId} />
       ) : (
         <Link
           href="/login"

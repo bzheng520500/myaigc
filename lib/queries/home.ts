@@ -1,8 +1,9 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { cacheLife } from "next/cache";
 import { REVALIDATE_CONTENT } from "@/lib/constants";
 import { db } from "@/lib/db";
 import {
+  forums,
   prompts,
   skills,
   threads,
@@ -33,7 +34,56 @@ export type HomeData = {
   stats: HomeStats;
   featured: SkillRow[];
   latest: SkillRow[];
+  hotThreads: HotThreadRow[];
 };
+
+/** 首页「论坛热帖」行（join forums 取板块名，Phase 4 Task 1） */
+export type HotThreadRow = {
+  id: string;
+  title: string;
+  replyCount: number;
+  forumSlug: string;
+  forumName: string;
+};
+
+/** 热帖窗口：只看近 30 天发帖（新鲜度优先，避免老帖霸榜） */
+const HOT_THREAD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * 首页热帖：published 帖按近 30 天窗口过滤、reply_count 倒序取 limit 条
+ * （is_pinned 不参与排序——首页按热度而非运营位）。
+ */
+export async function getHotThreads(limit = 5): Promise<HotThreadRow[]> {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
+
+  // 无数据库环境（如纯静态构建）：返回空列表，页面走空态
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
+
+  // limit 兜底：与 listLatestThreads 同风格，NaN / <1 归默认 5
+  const safeLimit = Math.max(1, Math.floor(limit)) || 5;
+
+  return db
+    .select({
+      id: threads.id,
+      title: threads.title,
+      replyCount: threads.replyCount,
+      forumSlug: forums.slug,
+      forumName: forums.name,
+    })
+    .from(threads)
+    .innerJoin(forums, eq(threads.forumId, forums.id))
+    .where(
+      and(
+        eq(threads.status, "published"),
+        gte(threads.createdAt, new Date(Date.now() - HOT_THREAD_WINDOW_MS)),
+      ),
+    )
+    .orderBy(desc(threads.replyCount))
+    .limit(safeLimit);
+}
 
 const skillColumns = {
   slug: skills.slug,
@@ -52,10 +102,11 @@ export async function getHomeData(): Promise<HomeData> {
       stats: { skills: 0, prompts: 0, tutorials: 0, threads: 0 },
       featured: [],
       latest: [],
+      hotThreads: [],
     };
   }
 
-  const [skillCountRows, promptCountRows, tutorialCountRows, threadCountRows, featured, latest] =
+  const [skillCountRows, promptCountRows, tutorialCountRows, threadCountRows, featured, latest, hotThreads] =
     await Promise.all([
       db
         .select({ value: count() })
@@ -79,6 +130,7 @@ export async function getHomeData(): Promise<HomeData> {
         .where(eq(skills.status, "published"))
         .orderBy(desc(skills.createdAt))
         .limit(8),
+      getHotThreads(5),
     ]);
 
   return {
@@ -90,5 +142,6 @@ export async function getHomeData(): Promise<HomeData> {
     },
     featured,
     latest,
+    hotThreads,
   };
 }

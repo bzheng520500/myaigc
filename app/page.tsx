@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SkillCard } from "@/components/skill-card";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getHomeData } from "@/lib/queries/home";
+import { getHomeData, type HotThreadRow } from "@/lib/queries/home";
 
 /**
- * 首页（Task 5）：Hero → 四格统计 → 三入口 → 精选 Skill → 最新上传 → 论坛占位。
+ * 首页（Task 5）：Hero → 四格统计 → 三入口 → 精选 Skill → 最新上传 → 论坛热帖。
  *
  * 缓存：next.config.ts 开启 cacheComponents（Next.js 16 已移除
  * `export const revalidate` 段配置），ISR 语义由 getHomeData 的
@@ -59,17 +60,51 @@ function EmptyPlaceholder({ text }: { text: string }) {
   );
 }
 
-function SectionHeading({ title, hint }: { title: string; hint?: string }) {
+function SectionHeading({
+  title,
+  hint,
+}: {
+  title: string;
+  /** 右侧提示文字或入口链接（如「进入论坛 →」） */
+  hint?: ReactNode;
+}) {
   return (
     <div className="mb-4 flex items-end justify-between gap-4">
       <h2 className="font-serif-display text-2xl">{title}</h2>
-      {hint && <span className="text-sm text-fg-muted">{hint}</span>}
+      {hint && (
+        <span className="text-sm text-fg-muted">{hint}</span>
+      )}
     </div>
   );
 }
 
+/** 热帖行：标题单行截断（title 提示全文）+ 板块名 Badge + 回复数 */
+function HotThreadItem({ thread }: { thread: HotThreadRow }) {
+  return (
+    <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <Link
+        href={`/forum/${thread.forumSlug}/${thread.id}`}
+        title={thread.title}
+        className="min-w-0 flex-1 truncate text-sm transition-colors hover:text-accent-soft-fg"
+      >
+        {thread.title}
+      </Link>
+      <Badge
+        variant="outline"
+        className="max-w-28 shrink-0 truncate"
+        title={thread.forumName}
+      >
+        {thread.forumName}
+      </Badge>
+      <span className="shrink-0 text-sm text-fg-muted">
+        {thread.replyCount} 回复
+      </span>
+    </li>
+  );
+}
+
 export default async function Home() {
-  const { stats, featured, latest } = await getHomeData();
+  const { stats, featured, latest, hotThreads } = await getHomeData();
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4">
@@ -181,21 +216,33 @@ export default async function Home() {
         </section>
       )}
 
-      {/* 论坛热帖（Phase 4 接入真实数据，本期占位） */}
+      {/* 论坛热帖（近 30 天按回复数排序；区块同时承载论坛入口） */}
       <section className="pb-20">
-        <SectionHeading title="论坛热帖" />
-        <Card className="border border-dashed border-border bg-transparent ring-0">
-          <CardHeader>
-            <CardTitle className="text-base text-fg-muted">
-              论坛即将开放
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed text-fg-muted">
-              社区讨论功能正在建设中，上线后这里将展示最热的话题与作品交流帖。
-            </p>
-          </CardContent>
-        </Card>
+        <SectionHeading
+          title="论坛热帖"
+          hint="近 30 天 · 按回复数"
+        />
+        {hotThreads.length > 0 ? (
+          <Card>
+            <CardContent>
+              <ul className="divide-y divide-border">
+                {hotThreads.map((thread) => (
+                  <HotThreadItem key={thread.id} thread={thread} />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ) : (
+          <EmptyPlaceholder text="论坛还没有热帖" />
+        )}
+        <div className="mt-4 text-center">
+          <Link
+            href="/forum"
+            className="text-sm text-accent-soft-fg transition-transform hover:translate-x-0.5"
+          >
+            进入论坛 →
+          </Link>
+        </div>
       </section>
     </main>
   );
