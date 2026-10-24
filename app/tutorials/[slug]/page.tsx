@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { CommentSection } from "@/components/comment-section";
 import MarkdownView from "@/components/markdown-view";
 import { Badge } from "@/components/ui/badge";
+import { listComments } from "@/lib/actions/comments";
+import { auth } from "@/lib/auth";
 import { getTutorialBySlug } from "@/lib/queries/tutorials";
 import { extractToc } from "@/lib/toc";
 
@@ -19,6 +23,43 @@ import { extractToc } from "@/lib/toc";
 type TutorialDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+/**
+ * 评论区服务端壳（Task 10）：auth() 与评论预取是请求个性化数据，
+ * 必须留在 "use cache" 函数之外——挂在 Suspense 内的异步子组件里
+ * （cacheComponents 下读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
+ */
+async function TutorialCommentArea({ tutorialId }: { tutorialId: string }) {
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    session = null;
+  }
+
+  // name 可空（魔法链接用户）：回退邮箱前缀，保证组件「currentUserName 非 null ⟺ 已登录」
+  const currentUserName =
+    session?.user?.name ??
+    (session?.user?.email
+      ? session.user.email.split("@")[0] || null
+      : null);
+
+  const comments = await listComments("tutorial", tutorialId);
+
+  return (
+    <CommentSection
+      targetType="tutorial"
+      targetId={tutorialId}
+      initialComments={comments}
+      currentUserName={currentUserName}
+    />
+  );
+}
+
+/** 与评论区大致等高的占位（避免流式注入时布局跳动） */
+function CommentAreaFallback() {
+  return <div className="h-48" aria-hidden="true" />;
+}
 
 export async function generateMetadata({
   params,
@@ -97,7 +138,10 @@ export default async function TutorialDetailPage({
             <MarkdownView content={tutorial.contentMd} />
           </article>
 
-          {/* CommentSection T10 */}
+          {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进 ISR 缓存（T10） */}
+          <Suspense fallback={<CommentAreaFallback />}>
+            <TutorialCommentArea tutorialId={tutorial.id} />
+          </Suspense>
         </div>
       </div>
     </main>

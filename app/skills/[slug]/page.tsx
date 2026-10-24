@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
+import { Suspense } from "react";
+import { CommentSection } from "@/components/comment-section";
 import { CopyButton, DownloadButton } from "@/components/copy-button";
 import MarkdownView from "@/components/markdown-view";
 import { Badge } from "@/components/ui/badge";
+import { listComments } from "@/lib/actions/comments";
 import {
   incrementSkillCopy,
   incrementSkillView,
 } from "@/lib/actions/skill-interactions";
+import { auth } from "@/lib/auth";
 import { stripFrontmatter } from "@/lib/markdown";
 import { getSkillBySlug } from "@/lib/queries/skills";
 
@@ -23,6 +27,43 @@ import { getSkillBySlug } from "@/lib/queries/skills";
 type SkillDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+/**
+ * 评论区服务端壳（Task 10）：auth() 与评论预取是请求个性化数据，
+ * 必须留在 "use cache" 函数之外——挂在 Suspense 内的异步子组件里
+ * （cacheComponents 下读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
+ */
+async function SkillCommentArea({ skillId }: { skillId: string }) {
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    session = null;
+  }
+
+  // name 可空（魔法链接用户）：回退邮箱前缀，保证组件「currentUserName 非 null ⟺ 已登录」
+  const currentUserName =
+    session?.user?.name ??
+    (session?.user?.email
+      ? session.user.email.split("@")[0] || null
+      : null);
+
+  const comments = await listComments("skill", skillId);
+
+  return (
+    <CommentSection
+      targetType="skill"
+      targetId={skillId}
+      initialComments={comments}
+      currentUserName={currentUserName}
+    />
+  );
+}
+
+/** 与评论区大致等高的占位（避免流式注入时布局跳动） */
+function CommentAreaFallback() {
+  return <div className="h-48" aria-hidden="true" />;
+}
 
 /** 中文日期格式化：2026年10月24日 */
 const zhDate = new Intl.DateTimeFormat("zh-CN", {
@@ -94,7 +135,10 @@ export default async function SkillDetailPage({ params }: SkillDetailPageProps) 
         <MarkdownView content={content} />
       </article>
 
-      {/* CommentSection T10 */}
+      {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进 ISR 缓存（T10） */}
+      <Suspense fallback={<CommentAreaFallback />}>
+        <SkillCommentArea skillId={skill.id} />
+      </Suspense>
     </main>
   );
 }
