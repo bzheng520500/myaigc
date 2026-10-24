@@ -1,26 +1,196 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   AI影视工坊 · 设计系统 token（Claude 官网风格）
+   ------------------------------------------------------------
+   三层结构：Primitive（原始值）→ Semantic（语义）→ Component（组件）
+   风格：米白底、大量留白、衬线标题（Noto Serif SC）、克制的陶土橙强调
+   深色模式：不做（dark variant 仅保留声明，.dark 作用域永不激活）
+   ------------------------------------------------------------
+   锁定色值（品牌规范，不得改动）：
+     页面底 #FAF9F5 · 卡片 #FFFFFF · 正文 #1F1E1D
+     次级文字 #6B6A66 · 强调 #D97757 · 边框 #E8E6E0
+   ============================================================ */
+
+/* ---------- Layer 1 · Primitive（原始值，不带语义） ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 纸面：暖米白阶 */
+  --paper-50: #faf9f5; /* 页面底（锁定） */
+  --paper-100: #f2f0ea; /* 弱填充：muted 区块 */
+  --paper-200: #ece9e1; /* 次级按钮底 / 分隔填充 */
+
+  /* 线与字 */
+  --line-200: #e8e6e0; /* 边框（锁定） */
+  --gray-500: #6b6a66; /* 次级文字（锁定） */
+  --ink-900: #1f1e1d; /* 正文/标题（锁定） */
+
+  /* 陶土橙：主强调色阶（#D97757 锁定，其余为派生档位） */
+  --clay-50: #f8ece3; /* 浅陶土底（选中/hover 高亮） */
+  --clay-500: #d97757; /* 主强调（锁定） */
+  --clay-600: #c96442; /* hover 加深 */
+  --clay-700: #a84b2e; /* active / 浅底上的强调文字 */
+
+  /* 功能色 */
+  --red-600: #c7361f; /* 危险/错误（暖红，配米白纸面） */
+  --white: #ffffff; /* 卡片/浮层（锁定） */
+
+  /* 字阶：标题用衬线，正文用无衬线（栈见 @theme --font-*） */
+  /* 间距：直接使用 Tailwind 默认 4px 刻度，不另行定义 */
 }
 
+/* ---------- Layer 2 · Semantic（语义别名，供页面与组件消费） ---------- */
+:root {
+  /* 品牌 token（brief 契约：后续页面消费这六个变量） */
+  --bg: var(--paper-50); /* 页面底色 */
+  --fg: var(--ink-900); /* 正文/标题色 */
+  --fg-muted: var(--gray-500); /* 次级文字 */
+  --accent: var(--clay-500); /* 主强调：陶土橙 */
+  --accent-fg: var(--white); /* 强调色上的文字 */
+  --accent-hover: var(--clay-600); /* 强调色 hover */
+  --accent-soft: var(--clay-50); /* 浅陶土底（高亮/选中） */
+  --accent-soft-fg: var(--clay-700); /* 浅陶土底上的文字 */
+  --border: var(--line-200); /* 边框 */
+  --card: var(--white); /* 卡片底 */
+  --card-fg: var(--ink-900); /* 卡片文字 */
+
+  /* shadcn/ui 语义桥接（组件内部消费） */
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card-foreground: var(--card-fg);
+  --popover: var(--white); /* 弹层/下拉底 */
+  --popover-foreground: var(--ink-900);
+  --primary: var(--accent); /* 主按钮 = 陶土橙 */
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--paper-200); /* 次级按钮 */
+  --secondary-foreground: var(--ink-900);
+  --muted: var(--paper-100); /* 弱背景 / ghost hover */
+  --muted-foreground: var(--fg-muted);
+  --accent-foreground: var(--accent-fg);
+  --destructive: var(--red-600);
+  --destructive-foreground: var(--white);
+  --input: var(--border); /* 输入框边框 */
+  --ring: var(--clay-500); /* focus 焦点环 = 陶土橙 */
+
+  /* 图表色板（陶土 + 暖灰派生，暂未被使用） */
+  --chart-1: var(--clay-500);
+  --chart-2: var(--clay-600);
+  --chart-3: var(--clay-700);
+  --chart-4: var(--gray-500);
+  --chart-5: #9c9a94;
+
+  /* 侧栏（预留，暂未被使用） */
+  --sidebar: var(--paper-50);
+  --sidebar-foreground: var(--ink-900);
+  --sidebar-primary: var(--clay-500);
+  --sidebar-primary-foreground: var(--white);
+  --sidebar-accent: var(--paper-100);
+  --sidebar-accent-foreground: var(--ink-900);
+  --sidebar-border: var(--line-200);
+  --sidebar-ring: var(--clay-500);
+
+  /* 圆角基准（卡片 12–16px、按钮全圆） */
+  --radius: 0.75rem;
+}
+
+/* ---------- Layer 3 · Component（组件级决策，供查阅/微调） ---------- */
+:root {
+  --radius-button: 9999px; /* 按钮全圆 pill（已固化在 button.tsx） */
+  --radius-card: 1rem; /* 卡片 16px（Card=rounded-xl） */
+  --shadow-soft: 0 1px 2px rgb(31 30 29 / 0.05); /* 极轻阴影（克制使用） */
+  --shadow-card-hover: 0 4px 16px rgb(31 30 29 / 0.07); /* 卡片悬浮 */
+  /* 卡片边框形态：1px ring-foreground/10（≈ #E8E6E0，已固化在 card.tsx） */
+}
+
+/* ---------- Tailwind 4 @theme 映射（CSS-first 配置） ---------- */
 @theme inline {
+  /* 品牌 token 直通：bg-bg / text-fg / text-fg-muted / bg-accent / bg-accent-soft… */
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-fg: var(--accent-soft-fg);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-fg: var(--card-fg);
+
+  /* shadcn 语义色 */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 字体：--font-sans/--font-serif 由 next/font 挂载（见 app/layout.tsx） */
+  --font-sans:
+    var(--font-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+    ui-sans-serif, system-ui, sans-serif;
+  --font-serif:
+    var(--font-serif), "Noto Serif SC", "Songti SC", "SimSun", ui-serif, serif;
+  --font-heading: var(--font-serif); /* 标题字族 = 衬线（CardTitle 等） */
+
+  /* 圆角刻度：8 / 10 / 12 / 16 / 20px（卡片用 xl=16px，输入与触发器用 lg=12px） */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-4xl: 2rem; /* badge 使用的超大圆角（h-5 下等效全圆） */
+
+  /* 阴影（克制） */
+  --shadow-soft: 0 1px 2px rgb(31 30 29 / 0.05);
+  --shadow-card-hover: 0 4px 16px rgb(31 30 29 / 0.07);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ---------- 工具样式 ---------- */
+
+/* 衬线大标题（后续页面标题统一使用：className="font-serif-display …"） */
+@utility font-serif-display {
+  font-family:
+    var(--font-serif), "Noto Serif SC", "Songti SC", "SimSun", ui-serif, serif;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
