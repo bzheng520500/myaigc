@@ -27,13 +27,26 @@ export type SendDailyDigestsResult = {
   failed: number;
 };
 
+/** 摘要窗口（毫秒）：只汇总最近 24 小时的通知（spec 每日摘要） */
+export const DIGEST_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 纯逻辑：摘要窗口起点（now 往前 24h）。导出供单测（终审 F3）。
+ */
+export function digestSince(now: Date = new Date()): Date {
+  return new Date(now.getTime() - DIGEST_WINDOW_MS);
+}
+
 export async function buildDigest(
   userId: string,
 ): Promise<{ unread: DigestNotification[] } | null> {
   // 无数据库环境（纯静态构建 / 本地无 .env）：无可摘要
   if (!process.env.DATABASE_URL) return null;
 
-  const { items, unread } = await listNotifications(userId);
+  // 终审 F3：只汇总最近 24h 的通知（更早的未读留给通知中心自行查看）
+  const { items, unread } = await listNotifications(userId, undefined, {
+    since: digestSince(),
+  });
   if (unread === 0) return null;
 
   // 摘要只放未读条目（items 为最近一页含已读，过滤掉）
@@ -57,6 +70,17 @@ export async function sendDailyDigests(
   }
 
   const devMode = process.env.AUTH_DEV_MODE === "1";
+
+  // 终审 F6：非 DEV 且发信配置缺失 → 循环前快速失败（不查库、不进
+  // 循环逐用户 failed）。failed=-1 哨兵表示配置缺失（区别于发信失败），
+  // route 原样返回给调用方 / 监控，可诊断漏配。
+  if (!devMode && (!process.env.RESEND_API_KEY || !process.env.AUTH_EMAIL_FROM)) {
+    console.error(
+      "[digest] 每日摘要未发送：非 DEV 环境缺少 RESEND_API_KEY / AUTH_EMAIL_FROM 配置（failed=-1）",
+    );
+    return { sent: 0, skipped: 0, failed: -1 };
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.AUTH_EMAIL_FROM;
   const resend = !devMode && apiKey && from ? new Resend(apiKey) : null;

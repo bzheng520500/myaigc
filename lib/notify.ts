@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   comments,
@@ -110,6 +110,7 @@ export async function createNotification(
 export async function listNotifications(
   userId: string,
   page?: number,
+  opts?: { since?: Date },
 ): Promise<{ items: NotificationItem[]; unread: number }> {
   if (!process.env.DATABASE_URL) {
     return { items: [], unread: 0 };
@@ -117,6 +118,12 @@ export async function listNotifications(
 
   // page 兜底与 lib/queries/forum.ts 的 listThreads 同风格：<1 / NaN 归 1
   const safePage = Math.max(1, Math.floor(page ?? 1)) || 1;
+  // since（终审 F3）：只统计 created_at >= since 的通知（每日摘要 24h 窗口
+  // 用）；不传时行为不变（全量）。items 与 unread 计数同步过滤，保证
+  // 「窗口外有未读」的用户在摘要侧等价于无新通知。
+  const sinceCond = opts?.since
+    ? gte(notifications.createdAt, opts.since)
+    : undefined;
 
   const [rows, unreadRows] = await Promise.all([
     db
@@ -131,7 +138,7 @@ export async function listNotifications(
       })
       .from(notifications)
       .leftJoin(users, eq(notifications.actorId, users.id))
-      .where(eq(notifications.userId, userId))
+      .where(and(eq(notifications.userId, userId), sinceCond))
       .orderBy(desc(notifications.createdAt))
       .limit(NOTIFICATIONS_PAGE_SIZE)
       .offset((safePage - 1) * NOTIFICATIONS_PAGE_SIZE),
@@ -139,7 +146,11 @@ export async function listNotifications(
       .select({ value: count() })
       .from(notifications)
       .where(
-        and(eq(notifications.userId, userId), isNull(notifications.readAt)),
+        and(
+          eq(notifications.userId, userId),
+          isNull(notifications.readAt),
+          sinceCond,
+        ),
       ),
   ]);
 

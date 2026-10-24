@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth";
+import { sanitizeReturnUrl } from "@/lib/return-url";
 
 /**
  * 登录页：邮箱魔法链接（Task 4）
@@ -36,12 +37,6 @@ const ERROR_MESSAGES: Record<string, string> = {
 /** searchParams 值可能是数组，取第一个 */
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-/** 只放行站内相对路径（防 open redirect；// 开头视为协议相对地址，拒绝） */
-function sanitizeReturnUrl(value: string | undefined): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
-  return value;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

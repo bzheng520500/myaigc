@@ -155,13 +155,14 @@ describe("skills", () => {
     expect(skills.tags.columnType).toBe("PgArray");
   });
 
-  it("索引：category、(status, created_at)", () => {
+  it("索引：category、(status, created_at)、view_count（终审 F5 热度排序）", () => {
     const sigs = indexSignatures(skills);
     expect(sigs).toContainEqual({ columns: ["category"], unique: false });
     expect(sigs).toContainEqual({
       columns: ["created_at", "status"],
       unique: false,
     });
+    expect(sigs).toContainEqual({ columns: ["view_count"], unique: false });
   });
 
   it("like_count 默认 0 且 not null", () => {
@@ -242,6 +243,13 @@ describe("comments（多态关联，无目标外键）", () => {
     expect(ref.columns.map((c) => c.name)).toEqual(["user_id"]);
     expect(ref.foreignColumns.map((c) => c.name)).toEqual(["id"]);
     expect(ref.foreignTable).toBe(users);
+  });
+
+  it("索引：(target_type, target_id)（终审 F5，评论区多态目标拉取路径）", () => {
+    expect(indexSignatures(comments)).toContainEqual({
+      columns: ["target_id", "target_type"],
+      unique: false,
+    });
   });
 });
 
@@ -380,6 +388,13 @@ describe("notifications", () => {
       f.reference().columns.some((c) => c.name === "user_id"),
     );
     expect(fk).toBeDefined();
+  });
+
+  it("索引：(user_id, read_at)（终审 F5，本人未读计数与列表的高频路径）", () => {
+    expect(indexSignatures(notifications)).toContainEqual({
+      columns: ["read_at", "user_id"],
+      unique: false,
+    });
   });
 });
 

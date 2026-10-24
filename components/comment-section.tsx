@@ -36,6 +36,7 @@ const ERROR_MESSAGES = {
   rate_limited: "评论太频繁，请稍后再试",
   not_found: "内容不存在",
   empty: "评论不能为空",
+  server_error: "操作失败，请稍后再试", // 终审 F7：写库异常兜底
 } as const;
 
 /** 相对时间（简单实现）：<60s 刚刚 → 分钟 → 小时 → 天 */
@@ -118,7 +119,7 @@ export function CommentSection({
             onChange={(e) => setContent(e.target.value)}
             placeholder="写下你的评论…"
             rows={4}
-            maxLength={2001}
+            maxLength={2000}
             disabled={submitting}
             aria-label="评论内容"
             className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-fg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"

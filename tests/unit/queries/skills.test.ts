@@ -36,6 +36,11 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
       await expect(listSkills({ category: "运镜", q: "推", page: 2 })).resolves.toEqual(
         { items: [], total: 0 },
       );
+      // 终审 F4：hot 排序同样短路不崩
+      await expect(listSkills({ q: "推", sort: "hot" })).resolves.toEqual({
+        items: [],
+        total: 0,
+      });
     } finally {
       vi.unstubAllEnvs();
     }
@@ -138,5 +143,89 @@ describe.skipIf(!process.env.DATABASE_URL)("listSkills / listCategories 连库�
     expect(categories).toContain(catB);
     // distinct：同分类不重复出现
     expect(new Set(categories).size).toBe(categories.length);
+  });
+});
+
+/* ---------------------------------------------------------------- */
+/* 连库：sort=new/hot 排序（终审 F4，独立数据组不干扰上方断言）          */
+/* ---------------------------------------------------------------- */
+
+describe.skipIf(!process.env.DATABASE_URL)("listSkills sort 排序连库", () => {
+  const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const hotCategory = `热度分类-${uniq}`;
+
+  // 排序探针：hotOld 浏览量高但最旧；zeroMid / zeroNew 零浏览量、时间递增
+  const slugs = {
+    hotOld: `f4-hot-old-${uniq}`, // viewCount=5，20s 前
+    zeroMid: `f4-zero-mid-${uniq}`, // viewCount=0，10s 前
+    zeroNew: `f4-zero-new-${uniq}`, // viewCount=0，最新
+  };
+  const allSlugs = Object.values(slugs);
+
+  beforeAll(async () => {
+    await db.insert(skills).values([
+      {
+        slug: slugs.hotOld,
+        name: `高浏览旧文-${uniq}`,
+        description: `排序探针 ${uniq}`,
+        contentMd: "# 测试",
+        category: hotCategory,
+        status: "published",
+        viewCount: 5,
+        createdAt: new Date(Date.now() - 20_000),
+      },
+      {
+        slug: slugs.zeroMid,
+        name: `零浏览中位-${uniq}`,
+        description: `排序探针 ${uniq}`,
+        contentMd: "# 测试",
+        category: hotCategory,
+        status: "published",
+        createdAt: new Date(Date.now() - 10_000),
+      },
+      {
+        slug: slugs.zeroNew,
+        name: `零浏览最新-${uniq}`,
+        description: `排序探针 ${uniq}`,
+        contentMd: "# 测试",
+        category: hotCategory,
+        status: "published",
+        createdAt: new Date(),
+      },
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.delete(skills).where(inArray(skills.slug, allSlugs));
+  });
+
+  it("默认（sort 缺省）：created_at desc 最新优先", async () => {
+    const { items, total } = await listSkills({ q: uniq });
+    expect(total).toBe(3);
+    expect(items.map((s) => s.slug)).toEqual([
+      slugs.zeroNew,
+      slugs.zeroMid,
+      slugs.hotOld,
+    ]);
+  });
+
+  it("sort=new：与默认一致（显式传参）", async () => {
+    const { items } = await listSkills({ q: uniq, sort: "new" });
+    expect(items.map((s) => s.slug)).toEqual([
+      slugs.zeroNew,
+      slugs.zeroMid,
+      slugs.hotOld,
+    ]);
+  });
+
+  it("sort=hot：view_count desc 优先，同分按 created_at desc 次序", async () => {
+    const { items, total } = await listSkills({ q: uniq, sort: "hot" });
+    expect(total).toBe(3);
+    // hotOld 浏览量最高排第一；zeroNew / zeroMid 同为 0 → 新的在前
+    expect(items.map((s) => s.slug)).toEqual([
+      slugs.hotOld,
+      slugs.zeroNew,
+      slugs.zeroMid,
+    ]);
   });
 });

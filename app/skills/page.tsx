@@ -25,12 +25,25 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** 分类筛选链接：保留 q（搜索词），不带 page（切分类回第 1 页） */
-function categoryHref(category: string | undefined, q: string | undefined): string {
-  const params = new URLSearchParams();
-  if (category) params.set("category", category);
-  if (q) params.set("q", q);
-  const qs = params.toString();
+/** 解析排序参数（终审 F4）：仅 hot 合法，其余（含缺省）归 new */
+function parseSort(raw: string | undefined): "new" | "hot" {
+  return raw === "hot" ? "hot" : "new";
+}
+
+/**
+ * 筛选链接（终审 F4 统一）：保留 category / q / sort 非默认值，
+ * 不带 page（任何筛选/排序切换回第 1 页），缺省项不写参数保持 URL 干净。
+ */
+function filterHref(params: {
+  category?: string;
+  q?: string;
+  sort?: string;
+}): string {
+  const sp = new URLSearchParams();
+  if (params.category) sp.set("category", params.category);
+  if (params.q) sp.set("q", params.q);
+  if (params.sort) sp.set("sort", params.sort);
+  const qs = sp.toString();
   return qs ? `/skills?${qs}` : "/skills";
 }
 
@@ -53,10 +66,11 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
   const sp = await searchParams;
   const category = first(sp.category);
   const q = first(sp.q);
+  const sort = parseSort(first(sp.sort));
   const page = Math.max(1, Number.parseInt(first(sp.page) ?? "1", 10) || 1);
 
   const [{ items, total }, categories] = await Promise.all([
-    listSkills({ category, q, page }),
+    listSkills({ category, q, page, sort }),
     listCategories(),
   ]);
 
@@ -73,11 +87,11 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
           </p>
         </div>
 
-        {/* 工具行：分类筛选 + 搜索 */}
+        {/* 工具行：分类筛选 + 排序切换 + 搜索 */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <nav aria-label="分类筛选" className="flex flex-wrap items-center gap-1">
             <Link
-              href={categoryHref(undefined, q)}
+              href={filterHref({ q, sort: sort === "hot" ? "hot" : undefined })}
               className={!category ? filterLinkActiveClass : filterLinkClass}
             >
               全部
@@ -85,7 +99,11 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
             {categories.map((c) => (
               <Link
                 key={c}
-                href={categoryHref(c, q)}
+                href={filterHref({
+                  category: c,
+                  q,
+                  sort: sort === "hot" ? "hot" : undefined,
+                })}
                 className={c === category ? filterLinkActiveClass : filterLinkClass}
               >
                 {c}
@@ -93,20 +111,41 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
             ))}
           </nav>
 
-          <form action="/skills" method="get" className="flex items-center gap-2">
-            {category && <input type="hidden" name="category" value={category} />}
-            <Input
-              type="search"
-              name="q"
-              defaultValue={q ?? ""}
-              placeholder="搜索 Skill 名称或简介"
-              aria-label="搜索 Skill"
-              className="w-60"
-            />
-            <Button type="submit" variant="outline">
-              搜索
-            </Button>
-          </form>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* 排序切换（链接式 Tab，与板块页同模式；保留 category / q） */}
+            <nav aria-label="排序" className="flex items-center gap-1">
+              <Link
+                href={filterHref({ category, q })}
+                aria-current={sort === "new" ? "true" : undefined}
+                className={sort === "new" ? filterLinkActiveClass : filterLinkClass}
+              >
+                最新
+              </Link>
+              <Link
+                href={filterHref({ category, q, sort: "hot" })}
+                aria-current={sort === "hot" ? "true" : undefined}
+                className={sort === "hot" ? filterLinkActiveClass : filterLinkClass}
+              >
+                最热
+              </Link>
+            </nav>
+
+            <form action="/skills" method="get" className="flex items-center gap-2">
+              {category && <input type="hidden" name="category" value={category} />}
+              {sort === "hot" && <input type="hidden" name="sort" value="hot" />}
+              <Input
+                type="search"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder="搜索 Skill 名称或简介"
+                aria-label="搜索 Skill"
+                className="w-60"
+              />
+              <Button type="submit" variant="outline">
+                搜索
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -148,7 +187,11 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
           total={total}
           pageSize={PAGE_SIZE}
           basePath="/skills"
-          searchParams={{ category, q }}
+          searchParams={{
+            category,
+            q,
+            sort: sort === "hot" ? "hot" : undefined,
+          }}
         />
       </div>
     </main>

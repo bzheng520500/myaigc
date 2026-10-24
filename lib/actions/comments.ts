@@ -109,17 +109,24 @@ export async function createComment(
     detailPath = `/tutorials/${row.slug}`;
   }
 
-  // 5. 插入（trim 后入库，status 默认 visible；returning id 供通知 sourceId）
-  const [inserted] = await db
-    .insert(comments)
-    .values({
-      userId,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      content: input.content.trim(),
-      status: "visible",
-    })
-    .returning({ id: comments.id });
+  // 5. 插入（trim 后入库，status 默认 visible；returning id 供通知 sourceId）。
+  //    终审 F7：写库异常兜底（与 forum.ts 同模式），前端映射统一中文文案
+  let insertedId: string;
+  try {
+    const [inserted] = await db
+      .insert(comments)
+      .values({
+        userId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        content: input.content.trim(),
+        status: "visible",
+      })
+      .returning({ id: comments.id });
+    insertedId = inserted.id;
+  } catch {
+    return { ok: false, error: "server_error" };
+  }
 
   // 6. 失效详情路径缓存（评论区预取在 Suspense 内动态执行，此处兜底）
   revalidatePath(detailPath);
@@ -133,7 +140,7 @@ export async function createComment(
       actorId: userId,
       type: "skill_comment",
       sourceType: "comment",
-      sourceId: inserted.id,
+      sourceId: insertedId,
     });
   }
 

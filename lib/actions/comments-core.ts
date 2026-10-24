@@ -18,7 +18,8 @@ export type CreateCommentError =
   | "too_long"
   | "rate_limited"
   | "not_found"
-  | "empty";
+  | "empty"
+  | "server_error"; // 终审 F7：写库异常兜底（前端映射「操作失败，请稍后再试」）
 
 /** listComments / 评论区消费的单条评论（join users 后的投影；likeCount 供点赞按钮初值，Phase 3） */
 export type CommentItem = {

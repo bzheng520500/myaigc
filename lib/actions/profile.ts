@@ -85,6 +85,11 @@ export async function updateProfile(
     return { ok: true };
   }
 
-  await db.update(users).set(patch).where(eq(users.id, userId));
+  // 4. 写库（终审 F7：异常兜底返回统一中文文案，与 forum.ts 同模式）
+  try {
+    await db.update(users).set(patch).where(eq(users.id, userId));
+  } catch {
+    return { ok: false, error: "操作失败，请稍后再试" };
+  }
   return { ok: true };
 }

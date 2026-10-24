@@ -11,7 +11,12 @@ import {
 import { GET as digestRoute } from "@/app/api/cron/digest/route";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
-import { buildDigest, sendDailyDigests } from "@/lib/digest";
+import {
+  buildDigest,
+  digestSince,
+  DIGEST_WINDOW_MS,
+  sendDailyDigests,
+} from "@/lib/digest";
 import type { DigestNotification } from "@/lib/digest";
 import { renderDailyDigestHtml } from "@/lib/emails/daily-digest";
 
@@ -24,9 +29,11 @@ import { renderDailyDigestHtml } from "@/lib/emails/daily-digest";
  *
  * - 纯逻辑（无库可跑）：邮件模板品牌风格 / XSS 转义 / 链接拼接 /
  *   空列表防御；route 鉴权 500 与 401（route handler 直接 import
- *   调用，与 interactions.test.ts 同模式）
+ *   调用，与 interactions.test.ts 同模式）；24h 摘要窗口（终审 F3）；
+ *   发信配置缺失快速失败 failed=-1（终审 F6，配置检查在触库之前）
  * - 连库（skipIf 无 DATABASE_URL）：buildDigest 未读判定与字段、
- *   sendDailyDigests 在 AUTH_DEV_MODE=1 下不真发（只 console.log）
+ *   24h 窗口外的旧未读不计入（终审 F3）、sendDailyDigests 在
+ *   AUTH_DEV_MODE=1 下不真发（只 console.log）
  */
 
 const BASE_URL = "https://example.com";
@@ -150,6 +157,70 @@ describe("GET /api/cron/digest 鉴权", () => {
 });
 
 /* ---------------------------------------------------------------- */
+/* 纯逻辑：24h 摘要窗口（终审 F3）                                    */
+/* ---------------------------------------------------------------- */
+
+describe("digestSince 24h 摘要窗口（纯逻辑）", () => {
+  it("窗口常量为 24 小时", () => {
+    expect(DIGEST_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("digestSince(now) = now 往前 24 小时", () => {
+    const now = new Date("2026-10-24T08:00:00Z");
+    expect(digestSince(now).getTime()).toBe(now.getTime() - DIGEST_WINDOW_MS);
+    expect(digestSince(now).toISOString()).toBe("2026-10-23T08:00:00.000Z");
+  });
+
+  it("缺省以当前时刻为基准（返回 24h 前的 Date）", () => {
+    const before = Date.now();
+    const since = digestSince().getTime();
+    const after = Date.now();
+    expect(since).toBeLessThanOrEqual(after - DIGEST_WINDOW_MS);
+    expect(since).toBeGreaterThanOrEqual(before - DIGEST_WINDOW_MS);
+  });
+});
+
+/* ---------------------------------------------------------------- */
+/* 纯逻辑：sendDailyDigests 配置缺失快速失败（终审 F6）                */
+/* ---------------------------------------------------------------- */
+
+describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触库之前）", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("非 DEV 且缺 RESEND_API_KEY → failed:-1 哨兵 + console.error 提示", async () => {
+    vi.stubEnv("DATABASE_URL", "postgresql://stub.local/db");
+    vi.stubEnv("AUTH_DEV_MODE", undefined);
+    vi.stubEnv("RESEND_API_KEY", undefined);
+    vi.stubEnv("AUTH_EMAIL_FROM", "noreply@example.com");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(sendDailyDigests(BASE_URL)).resolves.toEqual({
+      sent: 0,
+      skipped: 0,
+      failed: -1,
+    });
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("RESEND_API_KEY"));
+  });
+
+  it("非 DEV 且缺 AUTH_EMAIL_FROM → 同样快速失败 failed:-1", async () => {
+    vi.stubEnv("DATABASE_URL", "postgresql://stub.local/db");
+    vi.stubEnv("AUTH_DEV_MODE", undefined);
+    vi.stubEnv("RESEND_API_KEY", "re_xxx");
+    vi.stubEnv("AUTH_EMAIL_FROM", undefined);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(sendDailyDigests(BASE_URL)).resolves.toEqual({
+      sent: 0,
+      skipped: 0,
+      failed: -1,
+    });
+  });
+});
+
+/* ---------------------------------------------------------------- */
 /* 连库：buildDigest / sendDailyDigests                              */
 /* ---------------------------------------------------------------- */
 
@@ -235,6 +306,20 @@ describe.skipIf(!process.env.DATABASE_URL)("digest 连库", () => {
       expect(item.link).toBeNull(); // 源不存在 → null（邮件渲染纯文本）
       expect(item.createdAt).toBeInstanceOf(Date);
     }
+  });
+
+  it("buildDigest 24h 窗口（终审 F3）：仅 25h 前的旧未读不计入 → 仍 null", async () => {
+    // B 此前无通知（上一用例已断言 null）；插入一条 25h 前的未读
+    // 通知：digestSince 窗口外 → buildDigest 仍视为无可摘要
+    await db.insert(notifications).values({
+      userId: userIdB,
+      actorId: userIdA,
+      type: "like",
+      sourceType: "thread",
+      sourceId: "3f1c6d92-8b17-4e2a-9c4d-5a6b7c8d9e0f",
+      createdAt: new Date(Date.now() - 25 * 3600_000),
+    });
+    await expect(buildDigest(userIdB)).resolves.toBeNull();
   });
 
   it("sendDailyDigests（DEV 模式不真发）：A sent、B skipped、C 不计", async () => {

@@ -67,6 +67,8 @@ export const skills = pgTable(
   (t) => [
     index("skills_category_idx").on(t.category),
     index("skills_status_created_at_idx").on(t.status, t.createdAt),
+    // 终审 F5：最热排序（view_count desc）走索引，避免全表排序
+    index("skills_view_count_idx").on(t.viewCount),
   ],
 );
 
@@ -111,20 +113,27 @@ export const tutorials = pgTable("tutorials", {
 /* comments —— 内容评论（skill / tutorial 多态，无目标外键）               */
 /* ------------------------------------------------------------------ */
 
-export const comments = pgTable("comments", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  targetType: text("target_type").notNull(), // skill / tutorial
-  targetId: uuid("target_id").notNull(), // 多态目标，应用层保证存在
-  content: text("content").notNull(), // 限 2000 字（应用层校验）
-  status: text("status").default("visible").notNull(), // visible / hidden
-  likeCount: integer("like_count").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const comments = pgTable(
+  "comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    targetType: text("target_type").notNull(), // skill / tutorial
+    targetId: uuid("target_id").notNull(), // 多态目标，应用层保证存在
+    content: text("content").notNull(), // 限 2000 字（应用层校验）
+    status: text("status").default("visible").notNull(), // visible / hidden
+    likeCount: integer("like_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    // 终审 F5：评论区按 (target_type, target_id) 拉取（无目标外键，靠此索引）
+    index("comments_target_idx").on(t.targetType, t.targetId),
+  ],
+);
 
 /* ------------------------------------------------------------------ */
 /* forums / threads / replies —— 论坛（Phase 2）                         */
@@ -246,20 +255,27 @@ export const favorites = pgTable(
 /* notifications —— 通知（Phase 3）                                       */
 /* ------------------------------------------------------------------ */
 
-export const notifications = pgTable("notifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id), // 接收者
-  actorId: uuid("actor_id").references(() => users.id), // 触发者（系统通知可空）
-  type: text("type").notNull(), // thread_reply / reply_reply / skill_comment / like
-  sourceType: text("source_type").notNull(), // thread / reply / comment / skill
-  sourceId: uuid("source_id").notNull(), // 跳转目标
-  readAt: timestamp("read_at", { withTimezone: true }), // 空 = 未读
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id), // 接收者
+    actorId: uuid("actor_id").references(() => users.id), // 触发者（系统通知可空）
+    type: text("type").notNull(), // thread_reply / reply_reply / skill_comment / like
+    sourceType: text("source_type").notNull(), // thread / reply / comment / skill
+    sourceId: uuid("source_id").notNull(), // 跳转目标
+    readAt: timestamp("read_at", { withTimezone: true }), // 空 = 未读
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    // 终审 F5：通知中心「本人 + 未读」计数与列表的高频查询路径
+    index("notifications_user_read_idx").on(t.userId, t.readAt),
+  ],
+);
 
 /* ------------------------------------------------------------------ */
 /* Auth.js 表 —— 官方 PostgreSQL schema（@auth/drizzle-adapter 约定）      */

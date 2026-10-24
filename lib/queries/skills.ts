@@ -35,6 +35,12 @@ export type ListSkillsOptions = {
   category?: string;
   q?: string;
   page?: number;
+  /**
+   * 排序（终审 F4）：
+   * - "new"（默认）：created_at desc（最新优先）
+   * - "hot"：view_count desc，同分按 created_at desc 次序（最热优先）
+   */
+  sort?: "new" | "hot";
 };
 
 /** 组装过滤条件：published + category 精确匹配 + q 对 name/description ILIKE */
@@ -64,13 +70,18 @@ export async function listSkills(
   const where = buildFilters(opts);
   // page 兜底：<1 或 NaN 归 1，越界由 offset 自然截断（items 空、total 不变）
   const page = Math.max(1, Math.floor(opts.page ?? 1)) || 1;
+  // 终审 F4：hot = view_count desc + created_at desc 次序；默认 new 不变
+  const orderBy =
+    opts.sort === "hot"
+      ? [desc(skills.viewCount), desc(skills.createdAt)]
+      : [desc(skills.createdAt)];
 
   const [items, totalRows] = await Promise.all([
     db
       .select(skillColumns)
       .from(skills)
       .where(where)
-      .orderBy(desc(skills.createdAt))
+      .orderBy(...orderBy)
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ value: count() }).from(skills).where(where),
