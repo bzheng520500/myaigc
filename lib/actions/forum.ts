@@ -6,6 +6,7 @@ import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { forums, threads } from "@/lib/db/schema";
+import { createNotification } from "@/lib/notify";
 import { recentCount } from "@/lib/ratelimit";
 
 /**
@@ -256,26 +257,34 @@ export async function createReply(
   revalidatePath(`/forum/${thread.forumSlug}/${threadId}`);
   revalidatePath(`/forum/${thread.forumSlug}`);
 
-  // 8. 通知挂点（Phase 3 实装；失败不阻塞回复本身）
-  try {
-    await notifyReplied(userId, thread.authorId, threadId, userId);
-  } catch {
-    // 通知是旁路逻辑，异常吞掉即可
-  }
+  // 8. 通知（Phase 3 实装）：通知帖主 thread_reply。createNotification
+  //    内部静默 catch + 自通知跳过，调用方无需再包 try/catch
+  await notifyReplied(userId, thread.authorId, threadId, userId);
 
   return { ok: true, floor };
 }
 
-/** 回复触达通知挂点（Phase 3 实装：写 notifications 表 + 红点计数） */
+/**
+ * 回复触达通知（Phase 3 实装）。
+ *
+ * 简化 Ruling：楼层式论坛没有「回复某层」交互（ReplyForm 只传
+ * threadId），所有回复统一通知帖主（thread_reply）；reply_reply
+ * 类型保留在 schema / 文案映射中，本期不产生。签名保持不变
+ * （replyAuthorId 参数留作未来嵌套回复），当前调用点
+ * actorId === replyAuthorId 恒成立。
+ */
 export async function notifyReplied(
   actorId: string,
   threadAuthorId: string,
   threadId: string,
   replyAuthorId: string,
 ): Promise<void> {
-  // TODO Phase3：有人回复帖子/楼层时生成站内通知（thread_reply / reply_reply）
-  void actorId;
-  void threadAuthorId;
-  void threadId;
-  void replyAuthorId;
+  void replyAuthorId; // 见上：当前无嵌套回复，参数仅为签名兼容保留
+  await createNotification({
+    userId: threadAuthorId,
+    actorId,
+    type: "thread_reply",
+    sourceType: "thread",
+    sourceId: threadId,
+  });
 }

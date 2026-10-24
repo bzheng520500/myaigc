@@ -5,6 +5,7 @@ import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { comments, favorites, likes, replies, skills, threads } from "@/lib/db/schema";
+import { createNotification } from "@/lib/notify";
 
 /**
  * 点赞 / 收藏 server actions + 个性化状态查询（Phase 3 Task 1）。
@@ -65,46 +66,48 @@ async function currentUserId(): Promise<string | null> {
 }
 
 /**
- * 调整目标表 like_count 并返回新值（update ... returning）。
+ * 调整目标表 like_count 并返回新值 + 目标作者 id（update ... returning）。
  * delta=0 为只读探针（+0 无副作用，返回当前值）；目标行不存在 → null。
+ * authorId 随同一次 returning 带回（Phase 3 T2 供 like 通知，免二次查询）；
+ * builtin skill 无作者 → null。
  */
 async function adjustLikeCount(
   targetType: LikeTarget,
   targetId: string,
   delta: number,
-): Promise<number | null> {
+): Promise<{ likeCount: number; authorId: string | null } | null> {
   switch (targetType) {
     case "thread": {
       const [row] = await db
         .update(threads)
         .set({ likeCount: sql`${threads.likeCount} + ${delta}` })
         .where(eq(threads.id, targetId))
-        .returning({ likeCount: threads.likeCount });
-      return row?.likeCount ?? null;
+        .returning({ likeCount: threads.likeCount, authorId: threads.authorId });
+      return row ?? null;
     }
     case "reply": {
       const [row] = await db
         .update(replies)
         .set({ likeCount: sql`${replies.likeCount} + ${delta}` })
         .where(eq(replies.id, targetId))
-        .returning({ likeCount: replies.likeCount });
-      return row?.likeCount ?? null;
+        .returning({ likeCount: replies.likeCount, authorId: replies.authorId });
+      return row ?? null;
     }
     case "comment": {
       const [row] = await db
         .update(comments)
         .set({ likeCount: sql`${comments.likeCount} + ${delta}` })
         .where(eq(comments.id, targetId))
-        .returning({ likeCount: comments.likeCount });
-      return row?.likeCount ?? null;
+        .returning({ likeCount: comments.likeCount, authorId: comments.userId });
+      return row ?? null;
     }
     case "skill": {
       const [row] = await db
         .update(skills)
         .set({ likeCount: sql`${skills.likeCount} + ${delta}` })
         .where(eq(skills.id, targetId))
-        .returning({ likeCount: skills.likeCount });
-      return row?.likeCount ?? null;
+        .returning({ likeCount: skills.likeCount, authorId: skills.authorId });
+      return row ?? null;
     }
   }
 }
@@ -136,10 +139,21 @@ export async function toggleLike(
     .returning({ id: likes.id });
 
   if (inserted.length > 0) {
-    // 新点赞：计数 +1（返回新值）
-    // TODO(T2 通知)：liked=true 时 createNotification "like" 型通知作者
-    const count = await adjustLikeCount(targetType, targetId, 1);
-    return { ok: true, liked: true, count: count ?? 0 };
+    // 新点赞：计数 +1（returning 顺带取回作者 id 供通知）
+    const target = await adjustLikeCount(targetType, targetId, 1);
+    // like 通知（Phase 3 T2）：赞的是「内容」而非关系行，通知目标作者；
+    // builtin skill 无作者跳过、自赞由 createNotification 内部跳过、
+    // 同源未读合并（Review Focus #2 防刷屏）、写失败静默
+    if (target?.authorId) {
+      await createNotification({
+        userId: target.authorId,
+        actorId: userId,
+        type: "like",
+        sourceType: targetType,
+        sourceId: targetId,
+      });
+    }
+    return { ok: true, liked: true, count: target?.likeCount ?? 0 };
   }
 
   // 4. 已赞 → 取消：删除自己的 like 行（changes>0 才动计数）
@@ -157,11 +171,11 @@ export async function toggleLike(
   if (deleted.length === 0) {
     // 极端竞态：冲突行已被并发请求删掉 → 状态即"未赞"，计数不动（幂等）
     const count = await adjustLikeCount(targetType, targetId, 0);
-    return { ok: true, liked: false, count: count ?? 0 };
+    return { ok: true, liked: false, count: count?.likeCount ?? 0 };
   }
 
   const count = await adjustLikeCount(targetType, targetId, -1);
-  return { ok: true, liked: false, count: count ?? 0 };
+  return { ok: true, liked: false, count: count?.likeCount ?? 0 };
 }
 
 export async function toggleFavorite(

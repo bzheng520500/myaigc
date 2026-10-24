@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { auth, signOut } from "@/lib/auth";
+import { NotificationBell } from "@/components/notification-bell";
 
 /**
  * 全站页头（Task 5）。
@@ -10,7 +11,8 @@ import { auth, signOut } from "@/lib/auth";
  *   cacheComponents，读 headers/cookies 的调用必须位于 <Suspense>
  *   边界内的子组件，auth() 异常时按未登录渲染（无库/无 session
  *   环境可构建、可渲染）
- * - 右区 NotificationBellSlot：Phase 3 通知铃铛占位
+ * - 右区 NotificationBell：Phase 3 Task 2 通知铃铛（client 组件，
+ *   自行轮询 /api/me/notifications-count，未登录渲染 null）
  */
 
 const NAV_ITEMS = [
@@ -20,9 +22,9 @@ const NAV_ITEMS = [
   { label: "论坛", href: "/forum" },
 ] as const;
 
-/** Phase 3 替换为真实通知组件 */
+/** Phase 3 Task 2：真实通知铃铛（保留 Slot 名，页头结构不变） */
 export function NotificationBellSlot() {
-  return null;
+  return <NotificationBell />;
 }
 
 async function signOutAction() {

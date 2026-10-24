@@ -6,6 +6,7 @@ import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { comments, skills, tutorials, users } from "@/lib/db/schema";
+import { createNotification } from "@/lib/notify";
 import { recentCount } from "@/lib/ratelimit";
 import {
   validateCommentContent,
@@ -83,9 +84,11 @@ export async function createComment(
     return { ok: false, error: "not_found" };
   }
   let detailPath: string;
+  // skill 作者 id：评论成功后发 skill_comment 通知（builtin 无作者 → null 跳过）
+  let skillAuthorId: string | null = null;
   if (input.targetType === "skill") {
     const [row] = await db
-      .select({ slug: skills.slug })
+      .select({ slug: skills.slug, authorId: skills.authorId })
       .from(skills)
       .where(and(eq(skills.id, input.targetId), eq(skills.status, "published")))
       .limit(1);
@@ -93,6 +96,7 @@ export async function createComment(
       return { ok: false, error: "not_found" };
     }
     detailPath = `/skills/${row.slug}`;
+    skillAuthorId = row.authorId;
   } else {
     const [row] = await db
       .select({ slug: tutorials.slug })
@@ -105,17 +109,33 @@ export async function createComment(
     detailPath = `/tutorials/${row.slug}`;
   }
 
-  // 5. 插入（trim 后入库，status 默认 visible）
-  await db.insert(comments).values({
-    userId,
-    targetType: input.targetType,
-    targetId: input.targetId,
-    content: input.content.trim(),
-    status: "visible",
-  });
+  // 5. 插入（trim 后入库，status 默认 visible；returning id 供通知 sourceId）
+  const [inserted] = await db
+    .insert(comments)
+    .values({
+      userId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      content: input.content.trim(),
+      status: "visible",
+    })
+    .returning({ id: comments.id });
 
   // 6. 失效详情路径缓存（评论区预取在 Suspense 内动态执行，此处兜底）
   revalidatePath(detailPath);
+
+  // 7. 通知（Phase 3）：skill 评论 → Skill 作者收 skill_comment。
+  //    builtin Skill 无作者（authorId null）跳过；自评论由
+  //    createNotification 内部自通知跳过；写失败静默不阻塞评论
+  if (input.targetType === "skill" && skillAuthorId) {
+    await createNotification({
+      userId: skillAuthorId,
+      actorId: userId,
+      type: "skill_comment",
+      sourceType: "comment",
+      sourceId: inserted.id,
+    });
+  }
 
   return { ok: true };
 }
