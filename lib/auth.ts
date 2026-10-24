@@ -101,6 +101,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: "database" },
+  callbacks: {
+    /**
+     * database 策略下 user 即 users 表整行（含业务字段 role），但默认
+     * callback 只回填 name/email/image。这里把 id / role 注入
+     * session.user，供管理后台权限判定使用（Task 12）。
+     */
+    session({ session, user }) {
+      const sessionUser = session.user as {
+        id?: string;
+        role?: string;
+      };
+      sessionUser.id = user.id;
+      sessionUser.role = (user as { role?: string }).role ?? "user";
+      return session;
+    },
+  },
   pages: { signIn: "/login" },
   trustHost: true,
   secret: process.env.AUTH_SECRET,
