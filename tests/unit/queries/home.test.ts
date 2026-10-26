@@ -3,12 +3,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { forums, threads, users } from "@/lib/db/schema";
 import { getHomeData, getHotThreads } from "@/lib/queries/home";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * 首页查询（Phase 4 Task 1：热帖）。
  *
- * - 纯逻辑：无 DATABASE_URL 兜底（stub 后直接调用）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 纯逻辑：无库（D1 绑定不可用）兜底返回空
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   探针数据：1 板块 + 5 帖（30 天内不同回复数 3 条 / 40 天前高回复老帖
  *   1 条 / hidden 高回复 1 条）
  *
@@ -20,22 +21,22 @@ vi.mock("next/cache", () => ({
 }));
 
 /* ---------------------------------------------------------------- */
-/* 纯逻辑：无 DATABASE_URL 兜底                                       */
+/* 纯逻辑：无库（D1 绑定不可用）兜底                              */
 /* ---------------------------------------------------------------- */
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("getHotThreads 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(getHotThreads()).resolves.toEqual([]);
       await expect(getHotThreads(3)).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("getHomeData 返回空数据且含 hotThreads 字段", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       const data = await getHomeData();
       expect(data.hotThreads).toEqual([]);
@@ -46,7 +47,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
         threads: 0,
       });
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -55,7 +56,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：30 天内 reply desc 排序 + 老帖/hidden 排除                     */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)(
+describe.skipIf(!process.env.D1_LOCAL_TEST)(
   "getHotThreads / getHomeData 连库查询",
   () => {
     const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -1,28 +1,32 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { forums, threads } from "@/lib/db/schema";
+import { forums, replies, threads } from "@/lib/db/schema";
 import { createNotification } from "@/lib/notify";
 import { recentCount } from "@/lib/ratelimit";
 
 /**
  * 论坛发帖 / 回复 server actions（Phase 2 Task 1）。
  *
- * createReply 楼层号方案（Review Focus #1，brief 授权的等效实现）：
- * Neon serverless HTTP driver 不支持交互事务（db.transaction 不可用），
- * 改用单条 CTE——update threads 自增 reply_count 并 returning 新值
- * 作为 floor，同语句内 insert replies + forums.reply_count+1。
- * PG 行级锁保证并发回调同一帖时 UPDATE 串行执行 → floor 连续不重，
- * 语义等价于事务内 `select ... for update`。注意 PG 对 data-modifying
- * CTE「总是执行至完成、空结果不回滚」的语义：forum_bumped 必须经
- * 子查询关联 bumped（见 createReply 步骤 6 注释），否则 TOCTOU 场景
- * （预检后被锁定/隐藏）会单方面漂移 forums.reply_count。
- * is_locked / status 校验同时写进 CTE 的 where（Review Focus #2：
- * 不依赖预检结果，防「预检后被 admin 锁定」的 TOCTOU）。
+ * createReply 楼层号方案（Review Focus #1，D1 等效实现）：
+ * D1 不支持交互事务（db.transaction 不可用）与 data-modifying CTE，
+ * 改用 db.batch 三条语句（整批一个事务、按数组顺序执行）：
+ * 1) update threads 自增 reply_count（returning 新值即 floor）
+ * 2) insert replies（id 在 JS 侧 crypto.randomUUID 预生成）
+ * 3) update forums reply_count + 1
+ * batch 的语句在发送前统一编译，后一条拿不到前一条 RETURNING 的 JS 值，
+ * 因此 insert 的 floor_number 用「同批 update 之后表状态」的 SQL 子查询
+ * 求值（同一事务内顺序执行，读到的是前一条 update 的结果），跨语句依赖
+ * 不经 JS。并发回复同一帖时写事务串行化 + update 先行 → floor 连续不重。
+ * is_locked / status 校验写进 update 的 where（Review Focus #2：不依赖
+ * 预检结果，防「预检后被 admin 锁定」的 TOCTOU）；insert 的 floor 子查询
+ * 复带同样条件，帖子被隐藏/锁定/删除时返回 NULL → floor_number NOT NULL
+ * 违约 → 整批回滚，threads / replies / forums 三处零漂移（与原 CTE 空
+ * bumped 时「无插入、无计数变化」等价）。
  *
  * 分支顺序：登录 → 长度校验 → 目标校验 → 限流 → 写库 → revalidate，
  * 前三步不触库，vitest 无库可测（与 upload.ts 同模式）。
@@ -43,7 +47,7 @@ const THREAD_RATE_WINDOW_SEC = 5 * 60;
 /** 回复限流窗口（秒）：同用户 30 秒内只允许 1 条 */
 const REPLY_RATE_WINDOW_SEC = 30;
 
-/** threads.id 为 uuid 列：非法格式直接按不存在处理，避免 PG 抛 invalid input syntax */
+/** threads.id 为 uuid 文本：非法格式直接按不存在处理，省一次无谓查询（D1 不抛类型错） */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -201,55 +205,73 @@ export async function createReply(
     return { ok: false, error: "回复太频繁，请稍后再试" };
   }
 
-  // 6. 楼层号：单条原子 CTE（本文件头注释）。
+  // 6. 楼层号：db.batch（本文件头注释）。
+  //    reply id 在 JS 侧预生成；floor_number 由「同批 update 之后表状态」的
+  //    子查询求值，不依赖 RETURNING 结果回传 JS。
   //    where 复带 status / is_locked 条件：预检到执行之间被 admin 锁定/
-  //    隐藏时 bumped 命中 0 行。注意 PG 语义：data-modifying CTE 总是
-  //    执行至完成（空结果 ≠ 语句失败，不会回滚），因此 forum_bumped
-  //    必须经子查询关联 bumped——bumped 空 → 子查询 NULL → 0 行更新，
-  //    forums.reply_count 不漂移；主 select 附带查询 threads 当前
-  //    status / is_locked 用于空结果时区分文案。
+  //    隐藏时 update 命中 0 行；insert 的 floor 子查询复带同样条件 → NULL
+  //    → floor_number NOT NULL 违约 → 整批回滚（含 forums 计数），
+  //    threads / replies / forums 三处零漂移。
+  //    时间戳取同一个 Date 实例：两列严格相等，对应原 CTE 的单次 now()。
+  const newReplyId = crypto.randomUUID();
+  const now = new Date();
   let floor: number;
   try {
-    const result = await db.execute<{
-      floor: number | null;
-      status: string | null;
-      isLocked: boolean | null;
-    }>(sql`
-      with bumped as (
-        update threads
-           set reply_count = reply_count + 1,
-               last_reply_at = now(),
-               updated_at = now()
-         where id = ${threadId}
-           and status <> 'hidden'
-           and is_locked = false
-        returning id, forum_id, reply_count
-      ), inserted as (
-        insert into replies (thread_id, author_id, content_md, floor_number, status)
-        select id, ${userId}::uuid, ${content}, reply_count, 'visible'
-          from bumped
-        returning floor_number
-      ), forum_bumped as (
-        update forums
-           set reply_count = reply_count + 1
-         where id = (select forum_id from bumped)
-        returning 1
-      )
-      select
-        (select floor_number from inserted) as floor,
-        (select status from threads where id = ${threadId}) as status,
-        (select is_locked from threads where id = ${threadId}) as is_locked
-    `);
-    const row = result.rows[0];
-    if (!row || row.floor == null) {
-      // TOCTOU：预检通过后 CTE 执行前被隐藏/锁定（bumped 0 行，计数零漂移）
-      if (row?.status === "hidden") {
-        return { ok: false, error: "帖子不存在或已隐藏" };
-      }
+    const [bumped] = await db.batch([
+      db
+        .update(threads)
+        .set({
+          replyCount: sql`${threads.replyCount} + 1`,
+          lastReplyAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(threads.id, threadId),
+            ne(threads.status, "hidden"),
+            eq(threads.isLocked, false),
+          ),
+        )
+        .returning({ replyCount: threads.replyCount }),
+      db.insert(replies).values({
+        id: newReplyId,
+        threadId,
+        authorId: userId,
+        contentMd: content,
+        // SQLite 布尔存 0/1：is_locked = 0 即 false
+        floorNumber: sql`(select ${threads.replyCount} from ${threads} where ${threads.id} = ${threadId} and ${threads.status} <> 'hidden' and ${threads.isLocked} = 0)`,
+        status: "visible",
+      }),
+      db
+        .update(forums)
+        .set({ replyCount: sql`${forums.replyCount} + 1` })
+        .where(eq(forums.id, thread.forumId)),
+    ]);
+    const row = bumped[0];
+    if (!row) {
+      // 理论不可达：update 0 行时 insert 已因 floor_number NULL 违约回滚
       return { ok: false, error: "帖子已锁定，无法回复" };
     }
-    floor = row.floor;
+    floor = row.replyCount;
   } catch {
+    // TOCTOU（整批因 floor_number 违约回滚）或真实故障：回查最新状态
+    // 区分文案（原实现由 CTE 主 select 带回 status / is_locked）
+    let current: { status: string; isLocked: boolean } | undefined;
+    try {
+      [current] = await db
+        .select({ status: threads.status, isLocked: threads.isLocked })
+        .from(threads)
+        .where(eq(threads.id, threadId))
+        .limit(1);
+    } catch {
+      // 回查也失败（连接层故障等）：落到通用失败文案
+    }
+    if (!current || current.status === "hidden") {
+      return { ok: false, error: "帖子不存在或已隐藏" };
+    }
+    if (current.isLocked) {
+      return { ok: false, error: "帖子已锁定，无法回复" };
+    }
     return { ok: false, error: "回复失败，请稍后再试" };
   }
 

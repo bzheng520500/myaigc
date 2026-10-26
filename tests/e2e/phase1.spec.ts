@@ -6,13 +6,14 @@ import { loginViaLink } from "./helpers/login";
  * 登录 → 上传 → 详情 → 评论 → /skills 列表 revalidate。
  *
  * 运行前置（连库执行由控制器统一跑，本 spec 只做声明）：
- * - DATABASE_URL：Neon 连接串（未设置时整个文件 skip，见顶层守卫）
+ * - D1_LOCAL_TEST=1：本地 D1 连库开关（`npm run db:migrate:local` 后设置；
+ *   未设置时整个文件 skip，见顶层守卫；真实连库在 Phase E 接入）
  * - AUTH_DEV_MODE / E2E_TOKEN_URL_FILE 及魔法链接落盘登录方案
  *   见 tests/e2e/helpers/login.ts（Phase 2 Task 3 抽出的共享 helpers）
  */
 
-// 无库守卫：无 DATABASE_URL 的环境（纯静态构建验收波次）整个文件 skip
-test.skip(!process.env.DATABASE_URL, "需要 DATABASE_URL");
+// 无库守卫：未启用本地 D1 连库测试的环境（纯静态构建验收波次）整个文件 skip
+test.skip(process.env.D1_LOCAL_TEST !== "1", "需要 D1_LOCAL_TEST=1（本地 D1）");
 
 test("主链路：登录 → 上传 → 详情 → 评论 → 列表", async ({ page }) => {
   // 时间戳唯一化：邮箱 / Skill 名 / 正文 / 评论，保证每轮运行互不干扰

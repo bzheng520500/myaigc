@@ -1,117 +1,154 @@
 # AI影视工坊 部署手册
 
-从零到生产的完整部署流程。技术栈：Next.js 16 + Drizzle ORM + Neon（PostgreSQL）+ Resend（邮件）+ Vercel（托管与 Cron）。
+从零到生产的完整部署流程。技术栈：Next.js 16 + Drizzle ORM + Cloudflare D1（SQLite）+ Resend（邮件）+ Cloudflare Workers（托管与 Cron）。
 
 > 所有命令默认在仓库根目录 `ai-film-workshop/` 下执行。
+>
+> **Windows 中文路径注意**：Node 在含非 ASCII 字符的路径下执行 OpenNext 打包（`fs.cpSync`/`fs.rmSync` recursive）会让进程直接终止。`npm run build:cf / preview / deploy` 已内置规避：自动切换到纯 ASCII 工作区（默认 `M:\afw-build\ws`，可用环境变量 `CF_BUILD_WORKSPACE` 覆盖）完成构建与部署，日常开发（`npm run dev`）不受影响。
 
-## 1. Neon 建库并获取连接串
+## 0. 前置条件
 
-1. 注册 / 登录 [Neon](https://neon.tech)，创建 Project（区域建议选距离用户最近的，如 Singapore）。
-2. 在 Project Dashboard 的 **Connection Details** 中复制连接串，形如：
-   ```
-   postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require
-   ```
-   建议使用带 `-pooler` 的 pooled connection string（serverless 场景连接复用更好）。
-
-## 2. 本地 .env 配置
+1. 注册 / 登录 [Cloudflare](https://dash.cloudflare.com)，本机 CLI 已登录（`npx wrangler whoami` 能看到账号即就绪）。
+2. 创建 D1 数据库与 KV 命名空间（首次部署才需要）：
 
 ```bash
-cp .env.example .env
+npx wrangler d1 create ai-film-workshop
+npx wrangler kv namespace create NEXT_INC_CACHE_KV
 ```
 
-填入各变量：
+把返回的 `database_id` / KV `id` 填入 `wrangler.jsonc` 对应字段。
+
+## 1. 本地开发环境
+
+```bash
+npm install
+
+# 初始化本地 D1（.wrangler/state 下的 sqlite）
+npm run db:migrate:local
+
+# 导入初始内容（均幂等，直接连本地 D1，不需要 .env）
+npx tsx scripts/seed-forums.ts       # 论坛 5 板块
+npx tsx scripts/import-skills.ts     # 内置 Skill 库
+npx tsx scripts/import-prompts.ts    # 运镜提示词库
+npx tsx scripts/import-tutorials.ts  # 运镜教程
+```
+
+本地 `.env` 只需要这几项（`.env` 不入库）：
 
 | 变量 | 说明 |
 | --- | --- |
-| `DATABASE_URL` | 上一步复制的 Neon 连接串 |
 | `AUTH_SECRET` | Auth.js 加密密钥，`openssl rand -base64 32` 生成 |
-| `AUTH_DEV_MODE` | 本地开发填 `1`（验证链接打印到 console，不真发邮件）；**生产禁止设置** |
-| `RESEND_API_KEY` | Resend API 密钥（本地可留空，DEV 模式不发送） |
+| `AUTH_DEV_MODE` | 本地开发填 `1`（验证链接打印到 console 并落盘，不真发邮件）；**生产禁止设置** |
+| `RESEND_API_KEY` | Resend API 密钥（本地 DEV 模式不发送，可留空） |
 | `AUTH_EMAIL_FROM` | 发件人地址，如 `AI影视工坊 <noreply@your-domain.com>` |
-| `CRON_SECRET` | 每日摘要 cron 端点鉴权密钥，`openssl rand -base64 32` 生成 |
-| `NEXT_PUBLIC_BASE_URL` | 摘要邮件链接基地址，本地填 `http://localhost:3000`，生产填正式域名 |
-
-## 3. 初始化数据库结构
+| `CRON_SECRET` | 本地测 cron 用（生产用 `wrangler secret put` 配置） |
 
 ```bash
-npx drizzle-kit push
+npm run dev   # http://localhost:3000，next dev 会注入 wrangler.jsonc 的 D1/KV 绑定
 ```
 
-drizzle-kit 会自动读取 `.env` 中的 `DATABASE_URL`，把 `lib/db/schema.ts` 的全部表与索引推到 Neon。
-
-## 4. 初始化内容数据
+## 2. 生产数据库（远程 D1）
 
 ```bash
-# 论坛初始板块（幂等，可重复执行）
-npx tsx --env-file=.env scripts/seed-forums.ts
+# 应用 drizzle 迁移建表
+npm run db:migrate:remote
+```
 
-# 三个内置内容导入（均幂等）
-npx tsx --env-file=.env scripts/import-skills.ts      # 内置 Skill 库
-npx tsx --env-file=.env scripts/import-prompts.ts     # 运镜提示词条目
-npx tsx --env-file=.env scripts/import-tutorials.ts   # 运镜教学
+### 导入内容数据（导出/导入法）
+
+导入脚本（`scripts/import-*.ts`）通过 `getPlatformProxy()` 只能连本地库；远程库用「本地导出 SQL → 远程执行」：
+
+```bash
+# 1) 先把内容导入本地库（见第 1 节），再导出数据（不含 schema）
+npx wrangler d1 export ai-film-workshop --local --no-schema \
+  --table skills --table prompts --table tutorials --table forums \
+  --output=content-data.sql -y
+
+# 2) 执行到远程
+npx wrangler d1 execute ai-film-workshop --remote --file=content-data.sql -y
+
+# 3) 核对
+npx wrangler d1 execute ai-film-workshop --remote \
+  --command "SELECT (SELECT COUNT(*) FROM skills) AS skills, (SELECT COUNT(*) FROM prompts) AS prompts, (SELECT COUNT(*) FROM tutorials) AS tutorials, (SELECT COUNT(*) FROM forums) AS forums" -y
+```
+
+## 3. 部署 Worker
+
+```bash
+npm run deploy   # = OpenNext 构建（ASCII 工作区）+ wrangler deploy
+```
+
+部署成功输出站点地址：`https://<worker-name>.<子域>.workers.dev`。
+
+`wrangler.jsonc` 关键配置一览：
+
+- `main: worker.ts` —— 自定义 Worker 入口，转发 OpenNext handler 与 cron 的 `scheduled`
+- `d1_databases` / `kv_namespaces` —— `DB` 与 `NEXT_INC_CACHE_KV` 绑定
+- `triggers.crons: ["0 0 * * *"]` —— 每日摘要（UTC 0 点 = 北京时间 8 点）
+- `vars.NEXT_PUBLIC_BASE_URL` —— 摘要邮件里链接的基地址，首次部署后按实际域名回填再部署一次
+
+## 4. 生产 Secrets
+
+secrets 一律用 CLI 上传（**绝不写入 `wrangler.jsonc` 或代码库**）：
+
+```bash
+printf '%s' "<AUTH_SECRET 值>"    | npx wrangler secret put AUTH_SECRET
+printf '%s' "<RESEND_API_KEY>"    | npx wrangler secret put RESEND_API_KEY
+printf '%s' "<发件人地址>"         | npx wrangler secret put AUTH_EMAIL_FROM
+openssl rand -hex 32              | npx wrangler secret put CRON_SECRET
+```
+
+| Secret | 说明 |
+| --- | --- |
+| `AUTH_SECRET` | Auth.js 会话签名密钥（与本地一致即可） |
+| `RESEND_API_KEY` | 魔法链接邮件发送 |
+| `AUTH_EMAIL_FROM` | 发件人，如 `AI影视工坊 <noreply@your-domain.com>` |
+| `CRON_SECRET` | cron 端点鉴权；**未配置时 `/api/cron/digest` 直接 500（fail-closed）** |
+
+> **`AUTH_DEV_MODE` 生产一律不设置**：设置后魔法链接不真发邮件、直接落日志，等于放开登录。本地 `.env` 里的该变量不会被 `wrangler deploy` 带上线。
+
+cron 手动验证：
+
+```bash
+# 无密钥 → 401；带密钥 → {"sent":N,"skipped":N,"failed":N}
+curl -H "Authorization: Bearer $CRON_SECRET" https://<域名>/api/cron/digest
 ```
 
 ## 5. 提升管理员
 
-> **重要**：必须先用你的邮箱在网站上**注册并登录一次**（魔法链接登录时 Auth.js 才会创建用户行），然后再执行：
+1. 先用你的邮箱在网站上**魔法链接登录一次**（Auth.js 才会创建用户行）。
+2. 然后对远程 D1 执行：
 
 ```bash
-npx tsx --env-file=.env scripts/promote-admin.ts <你的邮箱>
+npx wrangler d1 execute ai-film-workshop --remote \
+  --command "UPDATE user SET role='admin' WHERE email='你的邮箱'" -y
 ```
 
-脚本按邮箱把 `users.role` 置为 `admin`。若提示用户不存在，说明还没登录过，先去登录再来。
+（本地开发等价命令：`npx tsx scripts/promote-admin.ts <邮箱>`）
 
-## 6. 推送到 GitHub
-
-```bash
-git add -A
-git commit -m "chore: ready for production"
-git push origin main
-```
-
-## 7. Vercel 部署
-
-1. [Vercel](https://vercel.com) → **Add New Project** → 导入 GitHub 仓库（框架预设自动识别 Next.js，无需改动构建配置）。
-2. **Environment Variables** 逐个添加（Production + Preview 环境）：
-
-| 变量 | 必填 | 说明 |
-| --- | --- | --- |
-| `DATABASE_URL` | 是 | Neon 连接串（与本地相同） |
-| `AUTH_SECRET` | 是 | 与本地一致的 Auth.js 密钥（或重新生成后只用于生产） |
-| `AUTH_EMAIL_FROM` | 是 | 发件人，如 `AI影视工坊 <noreply@your-domain.com>` |
-| `RESEND_API_KEY` | 是 | Resend API 密钥（缺失时每日摘要快速失败，failed=-1） |
-| `CRON_SECRET` | 是 | cron 端点鉴权密钥；**未设置时 /api/cron/digest 直接返回 500（fail-closed）** |
-| `NEXT_PUBLIC_BASE_URL` | 是 | `https://your-domain.com`（摘要邮件内的链接基地址） |
-
-3. **`AUTH_DEV_MODE` 生产环境一律不设置**：设置后魔法链接不真发邮件、验证链接打印到日志，等于放开登录。
-4. Deploy。`vercel.json` 已配置每日摘要 Cron（`0 0 * * *` UTC，即北京时间每天 8 点调用 `/api/cron/digest`；Vercel 检测到 `CRON_SECRET` 后自动携带 `Authorization: Bearer <secret>`）。
-
-## 8. Resend 域名与 DNS
+## 6. Resend 域名与 DNS
 
 1. [Resend](https://resend.com) → **Domains** → Add Domain，填你的自定义域名。
 2. 按提示到域名 DNS 服务商添加记录（通常 1 条 SPF TXT + 1 条 DKIM CNAME）。
 3. 等待验证通过（Verified）。未验证前只能用 `onboarding@resend.dev` 测试发件。
-4. `AUTH_EMAIL_FROM` 使用该域名下的地址（如 `noreply@your-domain.com`）。
+4. `AUTH_EMAIL_FROM` 使用该域名下的地址。
 
-## 9. 生产验收清单
+## 7. 生产验收清单（本手册对应环境已逐项验证）
 
-部署完成后逐项验证：
-
-- [ ] **注册/登录**：输入邮箱收到魔法链接邮件（检查发件人、非垃圾邮件），点击后登录成功落回原页面
-- [ ] **上传 Skill**：登录后在 Skill 库上传文档，列表与详情页可见
-- [ ] **评论**：在 Skill / 教程详情页发评论，乐观插入并刷新后仍在
-- [ ] **发帖/回复**：论坛选板块发帖、进帖回复，楼层号连续
-- [ ] **点赞**：帖子 / 回复 / 评论点赞，计数 +1，重复点赞不叠加
-- [ ] **通知**：用另一个账号回复 / 点赞你的内容，铃铛出现未读，通知中心可标读
-- [ ] **每日摘要 cron**：手动触发验证（返回 `{"sent":N,"skipped":N,"failed":N}`；配置缺失时 `failed:-1`）：
-  ```bash
-  curl -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/digest
-  ```
-- [ ] **管理后台**：promote-admin 的账号登录后可访问管理页
+- [x] 首页 `/`：站点统计（Skill/提示词/教程数）与精选列表来自远程 D1
+- [x] `/skills`、`/prompts`、`/tutorials`、`/forum` 四个内容页 200 且内容正确
+- [x] Skill 详情页正文 markdown 渲染正常
+- [x] `/login` 魔法链接页 200，提交后收到 Resend 邮件
+- [x] 未登录访问受保护页面（`/upload`、`/forum/new`、`/notifications`、`/profile`）307 跳登录
+- [x] `/api/cron/digest`：无密钥 401，带 `CRON_SECRET` 返回统计 JSON
+- [ ] 注册/登录全流程（收到邮件 → 点击链接 → 回到原页）——需要真实邮箱验证
+- [ ] 发帖 / 回复 / 点赞 / 收藏 / 通知——需要两个账号交互验证
 
 ## 常见问题
 
-- **收不到登录邮件**：检查 Resend 域名是否 Verified、`AUTH_EMAIL_FROM` / `RESEND_API_KEY` 是否配置、生产是否误设了 `AUTH_DEV_MODE=1`。
-- **cron 返回 500**：`CRON_SECRET` 未在 Vercel 环境变量设置（fail-closed 设计）。
+- **部署时进程无声退出（exit 127/1）**：项目路径含中文导致，`npm run deploy` 已自动切换 ASCII 工作区；若手动跑 OpenNext CLI 请设 `CF_BUILD_WORKSPACE`。
+- **收不到登录邮件**：检查 Resend 域名是否 Verified、`AUTH_EMAIL_FROM` / `RESEND_API_KEY` 是否已 put、生产是否误设了 `AUTH_DEV_MODE=1`。
+- **cron 返回 500**：`CRON_SECRET` 未上传（fail-closed 设计），`wrangler secret put CRON_SECRET` 后自动生效。
 - **cron 返回 401**：请求未带 `Authorization: Bearer <CRON_SECRET>` 或值不匹配。
-- **drizzle 结构变更**：修改 `lib/db/schema.ts` 后重新 `npx drizzle-kit push`。
+- **本地测试连库**：`D1_LOCAL_TEST=1 npx vitest run`（自动经 `getPlatformProxy()` 连本地 D1，文件串行执行）。
+- **远程 D1 结构变更**：修改 `lib/db/schema.ts` → `npm run db:generate` 生成迁移 → `npm run db:migrate:remote`。

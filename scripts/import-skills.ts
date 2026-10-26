@@ -1,9 +1,9 @@
 /**
  * 内置技能批量导入脚本（Task 13b，Phase 1 Step 3）。
  *
- * 用法（DATABASE_URL 需就位，.env 不会被 tsx 自动加载）：
+ * 用法（自动连接 wrangler 本地 D1，见 scripts/d1.ts）：
  *
- *   npx tsx --env-file=.env scripts/import-skills.ts
+ *   npx tsx scripts/import-skills.ts
  *
  * 语义要点（与用户上传不同）：
  * - 幂等：slug 由 slugify(name) 确定性生成——base 已存在且 source=
@@ -19,6 +19,7 @@ import { pathToFileURL } from "node:url";
 import { eq } from "drizzle-orm";
 import matter from "gray-matter";
 import { db } from "@/lib/db";
+import { connectScriptDb } from "@/scripts/d1";
 import { skills } from "@/lib/db/schema";
 import { slugify } from "@/lib/slug";
 
@@ -164,19 +165,24 @@ export async function importSkillsFromDir(dir: string): Promise<ImportStats> {
   return stats;
 }
 
-async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.error("请先配置 DATABASE_URL（如 npx tsx --env-file=.env scripts/import-skills.ts）");
-    process.exit(1);
-  }
-
+async function main(): Promise<number> {
   const dir = join(process.cwd(), "content-source", "skills");
   console.log(`读取 ${dir} …`);
   const stats = await importSkillsFromDir(dir);
   console.log(`导入完成：${formatStats(stats)}`);
 
   const total = stats.inserted + stats.updated + stats.skipped + stats.failed;
-  process.exit(total > 0 && stats.failed === total ? 1 : 0);
+  return total > 0 && stats.failed === total ? 1 : 0;
+}
+
+/** 建立本地 D1 绑定并保证 dispose（tsx 无 Workers 运行时上下文） */
+async function run(): Promise<number> {
+  const d1 = await connectScriptDb();
+  try {
+    return await main();
+  } finally {
+    await d1.dispose();
+  }
 }
 
 // tsx 直跑时才执行 main；被测试 import 时不触发
@@ -185,8 +191,12 @@ const invokedDirectly =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
-  main().catch((error) => {
-    console.error("执行失败：", error);
-    process.exit(1);
-  });
+  run()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      console.error("执行失败：", error);
+      process.exitCode = 1;
+    });
 }

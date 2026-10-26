@@ -9,11 +9,12 @@ import { auth } from "@/lib/auth";
 import { getTutorialBySlug } from "@/lib/queries/tutorials";
 import { extractToc } from "@/lib/toc";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 教程详情页（Task 9）。
  *
- * - ISR 300s：由 getTutorialBySlug 的 "use cache" + cacheLife 承载
- *   （cacheComponents 模式，项目无 export const revalidate）
+ * - getTutorialBySlug 直接查 D1（每次请求实时）
  * - 布局：max-w-6xl，lg 双栏（左 sticky 目录 w-64 + 右内容 max-w-3xl）；
  *   移动端目录折叠为原生 details（无 JS）置于内容上方
  * - 锚点一致性：目录 id 由 extractToc 生成，MarkdownView 渲染 h2/h3
@@ -26,8 +27,8 @@ type TutorialDetailPageProps = {
 
 /**
  * 评论区服务端壳（Task 10）：auth() 与评论预取是请求个性化数据，
- * 必须留在 "use cache" 函数之外——挂在 Suspense 内的异步子组件里
- * （cacheComponents 下读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
+ * 必须留在页面主组件之外——挂在 Suspense 内的异步子组件里
+ * （读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
  */
 async function TutorialCommentArea({ tutorialId }: { tutorialId: string }) {
   let session = null;
@@ -73,7 +74,7 @@ export async function generateMetadata({
 }
 
 export default function TutorialDetailPage(props: TutorialDetailPageProps) {
-  // cacheComponents 下 await params 必须在 <Suspense> 内（Task 14 fix）
+  // await params 必须在 <Suspense> 内（Task 14 fix）
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-6xl flex-1" aria-busy="true" />}>
       <TutorialDetailContent {...props} />
@@ -147,7 +148,7 @@ async function TutorialDetailContent({
             <MarkdownView content={tutorial.contentMd} />
           </article>
 
-          {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进 ISR 缓存（T10） */}
+          {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进页面主体渲染（T10） */}
           <Suspense fallback={<CommentAreaFallback />}>
             <TutorialCommentArea tutorialId={tutorial.id} />
           </Suspense>

@@ -12,7 +12,7 @@ import { users } from "@/lib/db/schema";
  * - 只改本人（update where id = session.user.id，天然免越权）
  * - 校验全部在触库之前：未登录 / 昵称超 30 字 / 头像非 http(s) URL
  * - 不调 revalidatePath：个人主页查询禁缓存（lib/queries/profile.ts
- *   无 "use cache"），设置页靠 router.refresh() 拉新
+ *   查询不缓存），设置页靠 router.refresh() 拉新
  */
 
 /** 昵称字数上限（schema 注释：应用层校验） */

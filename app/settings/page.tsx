@@ -7,11 +7,13 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { SettingsForm } from "./settings-form";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 个人设置页（Phase 3 Task 3，server 壳）。
  *
  * - middleware 已拦截 /settings（302 登录页），页面层 auth() 守卫
- *   是双保险（cacheComponents 下 auth() 读 cookies 必须位于
+ *   是双保险（auth() 读 cookies 必须位于
  *   <Suspense> 内的异步子组件，参照 app/upload/page.tsx）
  * - 表单初值从 users 表现查（database session 只回填部分字段，
  *   现查保证 notifyEmail 等业务字段拿得到最新值）

@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth";
 import { sanitizeReturnUrl } from "@/lib/return-url";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 登录页：邮箱魔法链接（Task 4）
  *
@@ -71,7 +73,7 @@ async function requestLogin(formData: FormData) {
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  // cacheComponents 下 await searchParams 必须在 <Suspense> 内（Task 14 fix）
+  // await searchParams 必须在 <Suspense> 内（Task 14 fix）
   return (
     <Suspense
       fallback={

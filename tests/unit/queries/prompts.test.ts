@@ -7,13 +7,13 @@ import {
   listPrompts,
   PAGE_SIZE,
 } from "@/lib/queries/prompts";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * 运镜提示词库列表查询（Task 8）
  *
- * - 纯逻辑：PAGE_SIZE 常量、无 DATABASE_URL 兜底（stub 环境变量后直接调用）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过，
- *   控制器统一 push 后设置 DATABASE_URL 即可执行
+ * - 纯逻辑：PAGE_SIZE 常量、无库（D1 绑定不可用）兜底返回空
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`
  *
  * cacheLife 在 Next cache scope 之外会 throw（vitest 无该运行时），
  * 这里 mock 成 no-op——测试只关心查询逻辑本身。
@@ -32,25 +32,25 @@ describe("PAGE_SIZE 常量", () => {
   });
 });
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("listPrompts 返回空结果", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listPrompts()).resolves.toEqual({ items: [], total: 0 });
       await expect(
         listPrompts({ category: "基础运镜", q: "推", page: 2 }),
       ).resolves.toEqual({ items: [], total: 0 });
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("listPromptCategories 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listPromptCategories()).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -59,7 +59,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：插入 3 条（2 条 category=A、1 条 category=B，其中 1 条 name 含特定子串） */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)(
+describe.skipIf(!process.env.D1_LOCAL_TEST)(
   "listPrompts / listPromptCategories 连库查询",
   () => {
     const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

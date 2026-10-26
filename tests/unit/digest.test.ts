@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import {
   afterAll,
   afterEach,
@@ -9,13 +9,14 @@ import {
   vi,
 } from "vitest";
 import { GET as digestRoute } from "@/app/api/cron/digest/route";
-import { db } from "@/lib/db";
+import { db, setDbForTesting } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
 import {
   buildDigest,
   digestSince,
   DIGEST_WINDOW_MS,
   sendDailyDigests,
+  sendDigestEmail,
 } from "@/lib/digest";
 import type { DigestNotification } from "@/lib/digest";
 import { renderDailyDigestHtml } from "@/lib/emails/daily-digest";
@@ -30,10 +31,11 @@ import { renderDailyDigestHtml } from "@/lib/emails/daily-digest";
  * - 纯逻辑（无库可跑）：邮件模板品牌风格 / XSS 转义 / 链接拼接 /
  *   空列表防御；route 鉴权 500 与 401（route handler 直接 import
  *   调用，与 interactions.test.ts 同模式）；24h 摘要窗口（终审 F3）；
- *   发信配置缺失快速失败 failed=-1（终审 F6，配置检查在触库之前）
- * - 连库（skipIf 无 DATABASE_URL）：buildDigest 未读判定与字段、
- *   24h 窗口外的旧未读不计入（终审 F3）、sendDailyDigests 在
- *   AUTH_DEV_MODE=1 下不真发（只 console.log）
+ *   发信配置缺失快速失败 failed=-1（终审 F6，配置检查在触库之前；
+ *   用 setDbForTesting 注入最小假实例模拟「有库」，不真触库）
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
+ *   buildDigest 未读判定与字段、24h 窗口外的旧未读不计入（终审 F3）、
+ *   sendDailyDigests 在 AUTH_DEV_MODE=1 下不真发（只 console.log）
  */
 
 const BASE_URL = "https://example.com";
@@ -121,6 +123,60 @@ describe("renderDailyDigestHtml 纯函数", () => {
 });
 
 /* ---------------------------------------------------------------- */
+/* 纯逻辑：sendDigestEmail 直接调 Resend REST（无 SDK，mock fetch）   */
+/* ---------------------------------------------------------------- */
+
+describe("sendDigestEmail Resend REST 调用（mock fetch）", () => {
+  const payload = {
+    from: "noreply@example.com",
+    to: "user@example.com",
+    subject: "你在 AI影视工坊 有 2 条新通知",
+    html: "<p>你好</p>",
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("POST https://api.resend.com/emails：Bearer 鉴权 + JSON body + 超时信号", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(sendDigestEmail("re_test_key", payload)).resolves.toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({
+      Authorization: "Bearer re_test_key",
+      "Content-Type": "application/json",
+    });
+    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("非 2xx（401）→ 返回 false，console.error 记录状态与响应体", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response("invalid api key", { status: 401 })),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(sendDigestEmail("bad_key", payload)).resolves.toBe(false);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("401"));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("invalid api key"),
+    );
+  });
+});
+
+/* ---------------------------------------------------------------- */
 /* 纯逻辑：cron route 鉴权（fail-closed，Review Focus #4）            */
 /* ---------------------------------------------------------------- */
 
@@ -188,10 +244,12 @@ describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触�
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    setDbForTesting(null);
   });
 
   it("非 DEV 且缺 RESEND_API_KEY → failed:-1 哨兵 + console.error 提示", async () => {
-    vi.stubEnv("DATABASE_URL", "postgresql://stub.local/db");
+    // 仅需 isDbAvailable() 为 true：配置检查早于任何 db 查询，注入空对象即可
+    setDbForTesting({});
     vi.stubEnv("AUTH_DEV_MODE", undefined);
     vi.stubEnv("RESEND_API_KEY", undefined);
     vi.stubEnv("AUTH_EMAIL_FROM", "noreply@example.com");
@@ -206,7 +264,7 @@ describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触�
   });
 
   it("非 DEV 且缺 AUTH_EMAIL_FROM → 同样快速失败 failed:-1", async () => {
-    vi.stubEnv("DATABASE_URL", "postgresql://stub.local/db");
+    setDbForTesting({});
     vi.stubEnv("AUTH_DEV_MODE", undefined);
     vi.stubEnv("RESEND_API_KEY", "re_xxx");
     vi.stubEnv("AUTH_EMAIL_FROM", undefined);
@@ -224,7 +282,7 @@ describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触�
 /* 连库：buildDigest / sendDailyDigests                              */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("digest 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("digest 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   // A：开关开 + 2 条未读；B：开关开 + 无通知；C：开关关（不进摘要循环）
@@ -323,9 +381,37 @@ describe.skipIf(!process.env.DATABASE_URL)("digest 连库", () => {
   });
 
   it("sendDailyDigests（DEV 模式不真发）：A sent、B skipped、C 不计", async () => {
-    const result = await sendDailyDigests(BASE_URL);
-    expect(result.sent).toBe(1);
-    expect(result.skipped).toBe(1);
-    expect(result.failed).toBe(0);
+    // sendDailyDigests 扫描全库 notifyEmail=true 的用户：本地库里可能有
+    // 其他测试/开发残留用户，会把计数抬高。先把非本次探针的用户临时
+    // 关掉，让 sent/skipped 只反映 A/B/C，跑完恢复。
+    const probeIds = [userIdA, userIdB, userIdC];
+    const others = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(eq(users.notifyEmail, true), notInArray(users.id, probeIds)),
+      );
+    const otherIds = others.map((u) => u.id);
+
+    if (otherIds.length > 0) {
+      await db
+        .update(users)
+        .set({ notifyEmail: false })
+        .where(inArray(users.id, otherIds));
+    }
+
+    try {
+      const result = await sendDailyDigests(BASE_URL);
+      expect(result.sent).toBe(1);
+      expect(result.skipped).toBe(1);
+      expect(result.failed).toBe(0);
+    } finally {
+      if (otherIds.length > 0) {
+        await db
+          .update(users)
+          .set({ notifyEmail: true })
+          .where(inArray(users.id, otherIds));
+      }
+    }
   });
 });

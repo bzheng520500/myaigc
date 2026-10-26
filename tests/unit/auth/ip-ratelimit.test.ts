@@ -2,9 +2,18 @@ import { eq } from "drizzle-orm";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * next-auth 顶层 import 会拉起 next/server（vitest node 环境解析失败），
- * mock 掉 NextAuth 构造器即可加载 lib/auth——被测的 emailProvider /
- * clientIpFromRequest 是模块内真实定义，不经 NextAuth 包装，不受影响。
+ * next-auth 必须 mock：next-auth 顶层会 `import "next/server"`
+ * （next-auth/lib/env.js），vitest 的 Node ESM 解析找不到该子路径而报
+ * ERR_MODULE_NOT_FOUND。mock 掉 NextAuth 构造器即可加载 lib/auth——
+ * 被测的 emailProvider / clientIpFromRequest 是模块内真实定义，
+ * 不经 NextAuth 包装，不受影响。
+ *
+ * @auth/drizzle-adapter 不再 mock（D1 迁移 C1 修复后）：lib/auth.ts 已改为
+ * `NextAuth(() => config)` 惰性配置，`DrizzleAdapter(getDb(), ...)` 只在
+ * 配置函数（请求期）内构造，模块顶层不触碰 adapter / D1 绑定，因此这里
+ * 可以加载真实 adapter。保留真实 adapter 还能顺带守住回归：若有人把
+ * adapter 构造提回模块顶层，`lib/db` 的 Proxy 会抛
+ * 「Unsupported database type」让用例直接失败。
  */
 vi.mock("next-auth", () => ({
   default: () => ({
@@ -83,7 +92,7 @@ describe("clientIpFromRequest 纯逻辑", () => {
 /* 连库：IP 限流拒绝与成功路径计数标记                                 */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("sendVerificationRequest IP 限流连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("sendVerificationRequest IP 限流连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   // TEST-NET-2 地址做探针 IP，不与真实邮箱格式冲突
   const ip = `198.51.100.${Math.floor(Math.random() * 254) + 1}`;

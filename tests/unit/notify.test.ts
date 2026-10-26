@@ -26,12 +26,12 @@ import {
  * 合并为一行——10 连赞后断言仅 1 条未读、created_at 被顶到最新。
  *
  * lib/notify 不依赖 auth() / next-cache（userId 一律由调用方传入），
- * 无需 mock；连库用例与 interactions.test.ts 同模式，无 DATABASE_URL
- * 时整体 skip。用例间存在数据依赖（先造通知行，再断言列表 / 标读），
- * 与 forum.test.ts 的串行探针风格一致。
+ * 无需 mock；连库用例与 interactions.test.ts 同模式，在本地 D1 未就位
+ * （未设 D1_LOCAL_TEST=1）时整体 skip。用例间存在数据依赖（先造通知行，
+ * 再断言列表 / 标读），与 forum.test.ts 的串行探针风格一致。
  */
 
-describe.skipIf(!process.env.DATABASE_URL)("通知域连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("通知域连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const forumSlug = `p3b-forum-${uniq}`;
   const skillSlug = `p3b-skill-${uniq}`;
@@ -301,20 +301,33 @@ describe.skipIf(!process.env.DATABASE_URL)("通知域连库", () => {
     expect(items).toHaveLength(5);
     expect(unread).toBe(5);
 
-    // created_at 倒序：最后插入的 reply 源 like 排最前
-    expect(items[0].sourceType).toBe("reply");
-    expect(items[1].type).toBe("skill_comment");
+    // created_at 倒序：整体单调不增。同一毫秒并列时先后未定义，
+    // 故不按索引硬编码顺序（应用层写显式毫秒戳，仍可能有并列）。
+    const times = items.map((i) => i.createdAt.getTime());
+    expect(times).toEqual([...times].sort((a, b) => b - a));
 
     // link 解析（Review：thread → /forum/{slug}/{id}；comment→skill → /skills/{slug}）
-    expect(items[0].link).toBe(`/forum/${forumSlug}/${threadId}`);
-    expect(items[1].link).toBe(`/skills/${skillSlug}`);
-    expect(items[2].link).toBe(`/forum/${forumSlug}/${threadId}`); // C 的 thread 源 like
-    expect(items[3].link).toBe(`/forum/${forumSlug}/${threadId}`); // B 的 thread 源 like（合并行）
-    expect(items[4].link).toBe(`/forum/${forumSlug}/${threadId}`); // thread_reply
+    // 按通知内容查找，不依赖并列时的排列顺序
+    const replyLike = items.find(
+      (i) => i.type === "like" && i.sourceType === "reply",
+    );
+    const skillComment = items.find((i) => i.type === "skill_comment");
+    const threadLikes = items.filter(
+      (i) => i.type === "like" && i.sourceType === "thread",
+    );
+    const threadReply = items.find((i) => i.type === "thread_reply");
+
+    expect(replyLike?.link).toBe(`/forum/${forumSlug}/${threadId}`);
+    expect(skillComment?.link).toBe(`/skills/${skillSlug}`);
+    // B 与 C 的 thread 源 like 各 1 行（同 actor 的连赞已合并）
+    expect(threadLikes).toHaveLength(2);
+    for (const like of threadLikes) {
+      expect(like.link).toBe(`/forum/${forumSlug}/${threadId}`);
+    }
 
     // actorName join users 正确（thread_reply 的 actor 是 B）
-    expect(items[4].actorName).toBe(`触发者B-${uniq}`);
-    expect(items[4].type).toBe("thread_reply");
+    expect(threadReply?.actorName).toBe(`触发者B-${uniq}`);
+    expect(threadReply?.link).toBe(`/forum/${forumSlug}/${threadId}`);
 
     // 用户隔离：B 只有自己那 1 条
     const forB = await listNotifications(userIdB);

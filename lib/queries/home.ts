@@ -1,7 +1,5 @@
 import { and, count, desc, eq, gte } from "drizzle-orm";
-import { cacheLife } from "next/cache";
-import { REVALIDATE_CONTENT } from "@/lib/constants";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import {
   forums,
   prompts,
@@ -14,9 +12,8 @@ import {
 /**
  * 首页数据查询（Task 5）。
  *
- * 缓存策略：next.config.ts 开启 cacheComponents（Next.js 16 已移除
- * `export const revalidate` 段配置），ISR 语义由函数级 "use cache" +
- * cacheLife 承载——revalidate = REVALIDATE_CONTENT（300s）。
+ * 缓存：无。Cloudflare Workers 不支持 cacheComponents/PPR（页面会
+ * hang），页面统一 force-dynamic，本文件查询每次请求实时读 D1。
  */
 
 /** 首页四格统计 */
@@ -54,11 +51,9 @@ const HOT_THREAD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
  * （is_pinned 不参与排序——首页按热度而非运营位）。
  */
 export async function getHotThreads(limit = 5): Promise<HotThreadRow[]> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空列表，页面走空态
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return [];
   }
 
@@ -93,11 +88,9 @@ const skillColumns = {
 };
 
 export async function getHomeData(): Promise<HomeData> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空数据，页面不 crash
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return {
       stats: { skills: 0, prompts: 0, tutorials: 0, threads: 0 },
       featured: [],
@@ -106,32 +99,40 @@ export async function getHomeData(): Promise<HomeData> {
     };
   }
 
-  const [skillCountRows, promptCountRows, tutorialCountRows, threadCountRows, featured, latest, hotThreads] =
-    await Promise.all([
-      db
-        .select({ value: count() })
-        .from(skills)
-        .where(eq(skills.status, "published")),
-      db.select({ value: count() }).from(prompts),
-      db.select({ value: count() }).from(tutorials),
-      db
-        .select({ value: count() })
-        .from(threads)
-        .where(eq(threads.status, "published")),
-      db
-        .select(skillColumns)
-        .from(skills)
-        .where(eq(skills.status, "published"))
-        .orderBy(desc(skills.viewCount))
-        .limit(6),
-      db
-        .select(skillColumns)
-        .from(skills)
-        .where(eq(skills.status, "published"))
-        .orderBy(desc(skills.createdAt))
-        .limit(8),
-      getHotThreads(5),
-    ]);
+  const [
+    skillCountRows,
+    promptCountRows,
+    tutorialCountRows,
+    threadCountRows,
+    featured,
+    latest,
+  ] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(skills)
+      .where(eq(skills.status, "published")),
+    db.select({ value: count() }).from(prompts),
+    db.select({ value: count() }).from(tutorials),
+    db
+      .select({ value: count() })
+      .from(threads)
+      .where(eq(threads.status, "published")),
+    db
+      .select(skillColumns)
+      .from(skills)
+      .where(eq(skills.status, "published"))
+      .orderBy(desc(skills.viewCount))
+      .limit(6),
+    db
+      .select(skillColumns)
+      .from(skills)
+      .where(eq(skills.status, "published"))
+      .orderBy(desc(skills.createdAt))
+      .limit(8),
+  ]);
+
+  // D1 单次 invocation 最多 6 个并发连接：热帖查询放到上面 6 路批次之后串行执行
+  const hotThreads = await getHotThreads(5);
 
   return {
     stats: {

@@ -1,9 +1,9 @@
 import { AccessDenied, AuthError } from "@auth/core/errors";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import type { Provider } from "next-auth/providers";
-import { Resend } from "resend";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   accounts,
   sessions,
@@ -15,10 +15,28 @@ import { recentCount, TOKENS_MAX_AGE_SEC } from "@/lib/ratelimit";
 /**
  * Auth.js v5 魔法链接登录（Task 4）
  *
- * - adapter：@auth/drizzle-adapter + Neon（表结构见 lib/db/schema.ts）
+ * - adapter：@auth/drizzle-adapter + Cloudflare D1（表结构见 lib/db/schema.ts）
  * - session：database 策略（session 表持久化，无 JWT）
  * - 邮件发送频控：同一邮箱 60s 内只允许发一封（recentCount('tokens', email, 60)）
- * - AUTH_DEV_MODE=1 时不调 Resend，验证链接完整打印到服务端 console
+ * - AUTH_DEV_MODE=1 且非生产环境时不调 Resend，验证链接打印到服务端 console
+ *
+ * ## 惰性配置（D1 迁移 C1，关键约束）
+ *
+ * 本模块顶层**不得**出现 `getCloudflareContext()`、`DrizzleAdapter(...)` 或任何
+ * DB 查询，必须全部下沉到 `authConfig()` 函数体内。原因：
+ *
+ * 1. Cloudflare 绑定只能经 `getCloudflareContext()` 取得，它读的是
+ *    `AsyncLocalStorage`（@opennextjs/cloudflare 的 runWithCloudflareRequestContext
+ *    在**每个请求**里 set store）。生产 Worker 的模块初始化阶段没有 store，
+ *    顶层调用会直接抛错。
+ * 2. OpenNext 的 worker 模板静态 `import { handler } from "./middleware/handler.mjs"`，
+ *    即 middleware/proxy bundle 在 worker **启动期**求值 —— 它会连带执行本模块顶层。
+ * 3. 顶层 `DrizzleAdapter(db, ...)` 还会因 `db` 是 lib/db 的 Proxy（原型是
+ *    Object.prototype）导致 adapter 内部 `is(db, BaseSQLiteDatabase)` 识别失败，
+ *    直接抛 `Unsupported database type (object)`。
+ *
+ * 因此改用 Auth.js v5 的函数式配置 `NextAuth(() => config)`：每次请求才调用
+ * 配置函数，`getDb()` 在其中解析绑定（首次成功后 lib/db 内部缓存）。
  */
 
 /** 魔法链接重发间隔（秒） */
@@ -29,6 +47,29 @@ const IP_RATE_WINDOW_SEC = 10 * 60;
 
 /** IP 发信限流上限：窗口内最多 5 封 */
 const IP_RATE_MAX = 5;
+
+/**
+ * 是否启用「打印魔法链接」的本地开发模式（安全要求，C1）。
+ *
+ * 生产环境**硬禁用**：即使线上误设 `AUTH_DEV_MODE=1`，也绝不能把可直接登录的
+ * 魔法链接写进 Worker 日志（Cloudflare observability 会长期留存）。
+ *
+ * 判定用白名单（fail-closed）：只有 `NODE_ENV` 明确为 `development`（next dev）
+ * 或 `test`（vitest）才生效；`NODE_ENV` 缺失或为 `production` 一律按生产处理。
+ * 注：OpenNext 的 server / node-middleware bundle 构建时会把
+ * `process.env.NODE_ENV` 内联为 `"production"`，白名单不依赖该前提也能保证安全。
+ *
+ * 在请求期（sendVerificationRequest 内）调用而非模块顶层求值，避免 Worker
+ * 模块初始化早于 process.env 注入（@opennextjs/cloudflare 的 populateProcessEnv）。
+ *
+ * 导出仅供单测断言「生产硬禁用」（与 clientIpFromRequest 同一定位）。
+ */
+export function isAuthDevMode(): boolean {
+  if (process.env.AUTH_DEV_MODE !== "1") return false;
+  return (
+    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test"
+  );
+}
 
 /**
  * 从 Request 解析客户端 IP：x-forwarded-for 首段（多级代理取最原始 IP）。
@@ -55,7 +96,7 @@ export function clientIpFromRequest(request: Request): string {
 async function markIpSent(ip: string): Promise<void> {
   if (!ip) return;
   try {
-    await db.insert(verificationTokens).values({
+    await getDb().insert(verificationTokens).values({
       identifier: `ip:${ip}`,
       token: crypto.randomUUID(),
       expires: new Date(Date.now() + TOKENS_MAX_AGE_SEC * 1000),
@@ -113,13 +154,15 @@ export const emailProvider: Provider = {
       );
     }
 
-    if (process.env.AUTH_DEV_MODE === "1") {
-      // 本地开发：完整链接打印到服务端 console，不调 Resend
+    if (isAuthDevMode()) {
+      // 本地开发：完整链接打印到服务端 console，不调 Resend。
+      // 生产环境走不到这里（isAuthDevMode 白名单只认 development/test），
+      // 因此下面的 node:fs 依赖图在 Worker 运行时永远不会被加载。
       console.log(`[auth] 魔法链接已生成（${identifier}）：${url}`);
       // E2E（Task 14）：Playwright 读不到 dev server 控制台，DEV 模式下
       // 把链接落盘到 E2E_TOKEN_URL_FILE 供 spec 轮询（见 lib/e2e-login-log.ts）。
-      // 本文件同时被 Edge middleware 引用：NEXT_RUNTIME 守卫 + 动态 import
-      // 让 Turbopack 在 Edge 构建中剔除 node:fs 依赖图（零告警）。
+      // NEXT_RUNTIME 守卫 + 动态 import：next dev（nodejs）才加载；
+      // 测试环境（vitest，NEXT_RUNTIME 未定义）跳过，避免真实写盘。
       if (process.env.NEXT_RUNTIME === "nodejs") {
         await import("@/lib/e2e-login-log").then((m) => m.appendLoginUrl(url));
       }
@@ -135,25 +178,40 @@ export const emailProvider: Provider = {
       );
     }
 
-    const resend = new Resend(apiKey);
-    const { error } = await resend.emails.send({
-      from,
-      to: identifier,
-      subject: "登录 AI影视工坊",
-      text: [
-        "你好！",
-        "",
-        "点击以下链接即可登录「AI影视工坊」，链接 15 分钟内有效：",
-        "",
-        url,
-        "",
-        "如果这不是你本人的操作，请忽略本邮件。",
-      ].join("\n"),
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: identifier,
+        subject: "登录 AI影视工坊",
+        text: [
+          "你好！",
+          "",
+          "点击以下链接即可登录「AI影视工坊」，链接 15 分钟内有效：",
+          "",
+          url,
+          "",
+          "如果这不是你本人的操作，请忽略本邮件。",
+        ].join("\n"),
+      }),
+      signal: AbortSignal.timeout(10_000),
     });
-    if (error) {
-      throw new EmailSignInError(
-        `邮件发送失败：${error.name ?? "ResendError"} ${error.message ?? ""}`.trim(),
-      );
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = (await response.json()) as {
+          name?: string;
+          message?: string;
+        };
+        detail = `${body.name ?? "ResendError"} ${body.message ?? ""}`.trim();
+      } catch {
+        // 非 JSON 响应（网关错误页等）：保留 HTTP 状态码
+      }
+      throw new EmailSignInError(`邮件发送失败：${detail}`);
     }
 
     // 发信成功：写入 IP 计数标记（发信/打印链接两个成功路径末尾各调一次）
@@ -161,32 +219,48 @@ export const emailProvider: Provider = {
   },
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
-  providers: [emailProvider],
-  session: { strategy: "database" },
-  callbacks: {
-    /**
-     * database 策略下 user 即 users 表整行（含业务字段 role），但默认
-     * callback 只回填 name/email/image。这里把 id / role 注入
-     * session.user，供管理后台权限判定使用（Task 12）。
-     */
-    session({ session, user }) {
-      const sessionUser = session.user as {
-        id?: string;
-        role?: string;
-      };
-      sessionUser.id = user.id;
-      sessionUser.role = (user as { role?: string }).role ?? "user";
-      return session;
+/**
+ * Auth.js 配置工厂（惰性，Auth.js v5 每次请求才调用求值）。
+ *
+ * 唯一允许构造 DrizzleAdapter / 解析 D1 绑定的地方：`getDb()` 在此处
+ * 首次调用时才走 `getCloudflareContext()`，即一定处于请求作用域内。
+ * 返回值语义与原静态配置逐项一致（session 策略 / callbacks / pages /
+ * trustHost / secret 均未改动）。
+ */
+function authConfig(): NextAuthConfig {
+  return {
+    adapter: DrizzleAdapter(getDb(), {
+      usersTable: users,
+      accountsTable: accounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+    }),
+    providers: [emailProvider],
+    session: { strategy: "database" },
+    callbacks: {
+      /**
+       * database 策略下 user 即 users 表整行（含业务字段 role），但默认
+       * callback 只回填 name/email/image。这里把 id / role 注入
+       * session.user，供管理后台权限判定使用（Task 12）。
+       */
+      session({ session, user }) {
+        const sessionUser = session.user as {
+          id?: string;
+          role?: string;
+        };
+        sessionUser.id = user.id;
+        sessionUser.role = (user as { role?: string }).role ?? "user";
+        return session;
+      },
     },
-  },
-  pages: { signIn: "/login" },
-  trustHost: true,
-  secret: process.env.AUTH_SECRET,
-});
+    pages: { signIn: "/login" },
+    trustHost: true,
+    secret: process.env.AUTH_SECRET,
+  };
+}
+
+/**
+ * 函数式（惰性）初始化：模块顶层只做一次轻量包装，不触碰 Cloudflare 绑定。
+ * `handlers` 仍是 `{ GET, POST }`（每次请求内部求值 config），对外路由签名不变。
+ */
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

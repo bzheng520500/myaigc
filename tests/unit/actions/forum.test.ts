@@ -1,8 +1,17 @@
-import { eq, inArray, sql, type SQLWrapper } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { forums, replies, threads, users } from "@/lib/db/schema";
+import { db, getDb, setDbForTesting, type Db } from "@/lib/db";
+import {
+  comments,
+  favorites,
+  forums,
+  likes,
+  notifications,
+  replies,
+  threads,
+  users,
+} from "@/lib/db/schema";
 import { createReply, createThread, notifyReplied } from "@/lib/actions/forum";
 
 /**
@@ -10,8 +19,13 @@ import { createReply, createThread, notifyReplied } from "@/lib/actions/forum";
  * Review Focus #2 锁定帖二次校验）。
  *
  * - 纯逻辑（无库可跑）：未登录 / 长度校验 / 非法 threadId，全部在触库前返回
- * - 连库：createThread 合法插入 + 限流；createReply 楼层连续、
- *   Promise.all 并发楼层不重、锁定 / hidden 拒绝、限流
+ * - 连库（本地 D1）：createThread 合法插入 + 限流；createReply 楼层连续、
+ *   Promise.all 并发楼层不重、锁定 / hidden 拒绝、限流、TOCTOU 零漂移。
+ *   本地 D1 连库测试：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1` 运行。
+ *
+ * createReply 的楼层号在 D1 下由 `db.batch([update threads, insert reply,
+ * update forums])` 实现（D1 无交互事务 / data-modifying CTE），见
+ * lib/actions/forum.ts 文件头注释；TOCTOU 用例外挂在 batch 执行前锁定探针帖。
  *
  * mock（与 upload.test.ts 同模式）：@/lib/auth 注入登录态；
  * next/cache 的 revalidatePath 只能在 Next runtime 内调用。
@@ -135,7 +149,7 @@ describe("createThread / createReply 前置分支（纯逻辑）", () => {
 /* 连库：createThread 插入/限流；createReply 楼层/并发/锁定/限流        */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("createThread / createReply 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const forumSlug = `p2a-forum-${uniq}`;
 
@@ -208,7 +222,9 @@ describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", 
   });
 
   afterAll(async () => {
-    // 清理顺序：replies → threads → forums → users（外键依赖）
+    // 清理顺序：replies → threads → forums → 关联表 → users。
+    // D1 强制外键（PRAGMA foreign_keys 默认开），回复动作会写 notifications，
+    // 漏删关联表会让最后的 users 删除直接 FK violation。
     const forumThreads = await db
       .select({ id: threads.id })
       .from(threads)
@@ -219,6 +235,17 @@ describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", 
     }
     await db.delete(threads).where(eq(threads.forumId, forumId));
     await db.delete(forums).where(eq(forums.id, forumId));
+    await db
+      .delete(notifications)
+      .where(
+        or(
+          inArray(notifications.userId, userIds),
+          inArray(notifications.actorId, userIds),
+        ),
+      );
+    await db.delete(likes).where(inArray(likes.userId, userIds));
+    await db.delete(favorites).where(inArray(favorites.userId, userIds));
+    await db.delete(comments).where(inArray(comments.userId, userIds));
     await db.delete(users).where(inArray(users.id, userIds));
   });
 
@@ -317,12 +344,15 @@ describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", 
     });
   });
 
-  it("createReply TOCTOU：预检通过后 CTE 执行前被锁定 → 拒绝且计数零漂移", async () => {
-    // 直击空 bumped 路径（fix round 1 Critical）：PG 对 data-modifying
-    // CTE「总是执行至完成、空结果不回滚」，forum_bumped 若不关联 bumped
-    // 会在 bumped 空时把 forums.reply_count 单方面 +1。
-    // 钩子：spyOn db.execute，在 CTE 真正执行前把探针帖锁定
-    // （预检 db.select 不经 execute，预检时帖子尚未锁定 → 通过）
+  it("createReply TOCTOU：预检通过后 batch 执行前被锁定 → 拒绝且计数零漂移", async () => {
+    // 直击「预检 → batch」间隙：createReply 先 select 预检（此时未锁定），
+    // 再执行 db.batch（update threads + insert reply + update forums）。
+    // 钩子：用 Proxy 包住真实 drizzle 实例，在 batch 真正执行前把探针帖
+    // 锁定（D1 下 db 是惰性绑定 Proxy，不能 vi.spyOn；setDbForTesting 是
+    // 官方注入入口）。
+    // 期望：update threads 命中 0 行、insert 的 floor 子查询返回 NULL →
+    // floor_number NOT NULL 违约 → 整批回滚 → catch 回查锁定状态返回文案，
+    // threads / replies / forums 三处零漂移。
     const [victim] = await db
       .insert(threads)
       .values({
@@ -338,17 +368,25 @@ describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", 
       .from(forums)
       .where(eq(forums.id, forumId));
 
-    const realExecute = db.execute.bind(db);
-    const spy = vi.spyOn(db, "execute").mockImplementation(
-      // 类型纠缠（PgRaw 是 thenable 非 Promise）：整体 cast，运行时仅透传
-      (async (query: string | SQLWrapper) => {
-        await realExecute(
-          sql`update threads set is_locked = true where id = ${victim.id}`,
-        );
-        return realExecute(query);
-      }) as never,
-    );
+    const realDb = getDb();
+    const batchWithLock = new Proxy(realDb, {
+      get(target, prop) {
+        if (prop === "batch") {
+          return async (queries: Parameters<Db["batch"]>[0]) => {
+            // 模拟预检后、batch 前管理员锁定帖子
+            await target
+              .update(threads)
+              .set({ isLocked: true })
+              .where(eq(threads.id, victim.id));
+            return target.batch(queries);
+          };
+        }
+        const value = Reflect.get(target, prop, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
 
+    setDbForTesting(batchWithLock);
     try {
       loginAs(toctouG);
       await expect(createReply(victim.id, "TOCTOU 回复")).resolves.toEqual({
@@ -375,7 +413,7 @@ describe.skipIf(!process.env.DATABASE_URL)("createThread / createReply 连库", 
         .where(eq(replies.threadId, victim.id));
       expect(insertedReplies).toEqual([]);
     } finally {
-      spy.mockRestore();
+      setDbForTesting(realDb);
     }
   });
 });

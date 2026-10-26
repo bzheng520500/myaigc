@@ -7,12 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listPromptCategories, listPrompts, PAGE_SIZE } from "@/lib/queries/prompts";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 运镜提示词库列表页（Task 8）。
  *
  * - URL 参数：?category=&q=&page=（筛选变更回到第 1 页）
- * - ISR 300s：由 listPrompts / listPromptCategories 的 "use cache" + cacheLife 承载
- *   （cacheComponents 模式，项目无 export const revalidate）
+ * - listPrompts / listPromptCategories 直接查 D1（每次请求实时）
  * - 搜索：原生 GET form 提交到本页，无客户端 JS 依赖
  * - 分类：优先库中 distinct 分类；无库/空表时回退到 schema 约定的四个固定分类，
  *   保证纯静态环境下工具行仍完整可渲染
@@ -46,7 +47,7 @@ const filterLinkActiveClass =
   "rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent-soft-fg";
 
 export default function PromptsPage(props: PromptsPageProps) {
-  // cacheComponents 下 await searchParams 必须在 <Suspense> 内（Task 14 fix）
+  // await searchParams 必须在 <Suspense> 内（Task 14 fix）
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-6xl flex-1" aria-busy="true" />}>
       <PromptsContent {...props} />

@@ -29,8 +29,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // 空串（wrangler vars 配了空值）按未配置处理，避免邮件里出现相对链接
   const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ??
+    process.env.NEXT_PUBLIC_BASE_URL ||
     `https://${request.headers.get("host") ?? "localhost"}`;
 
   const { sent, skipped, failed } = await sendDailyDigests(baseUrl);

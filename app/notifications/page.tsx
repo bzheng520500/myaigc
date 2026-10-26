@@ -15,13 +15,15 @@ import {
   type NotificationType,
 } from "@/lib/notify";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 通知中心（Phase 3 Task 2，server 页）。
  *
  * - middleware 已拦截 /notifications（302 登录页），页面层 auth() 守卫
- *   是双保险（cacheComponents 下 auth() 读 cookies，必须位于 <Suspense>
+ *   是双保险（auth() 读 cookies，必须位于 <Suspense>
  *   边界内的异步子组件，参照 app/forum/new/page.tsx）
- * - 列表数据 listNotifications：个人数据禁缓存（无 "use cache"），
+ * - 列表数据 listNotifications：个人数据禁缓存，
  *   标读 / 全部已读后 form action 提交触发当前路由自动重渲染
  * - 条目点击 NotificationLink（client）：先 markNotificationRead 再
  *   router.push 跳源；link 为 null（源已删）渲染纯文本不可点

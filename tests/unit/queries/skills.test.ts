@@ -3,13 +3,13 @@ import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { skills } from "@/lib/db/schema";
 import { listCategories, listSkills, PAGE_SIZE } from "@/lib/queries/skills";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * Skill 库列表查询（Task 6）
  *
- * - 纯逻辑：PAGE_SIZE 常量、无 DATABASE_URL 兜底（stub 环境变量后直接调用）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过，
- *   控制器统一 push 后设置 DATABASE_URL 即可执行
+ * - 纯逻辑：PAGE_SIZE 常量、无库（D1 绑定不可用）兜底返回空
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`
  *
  * cacheLife 在 Next cache scope 之外会 throw（vitest 无该运行时），
  * 这里 mock 成 no-op——测试只关心查询逻辑本身。
@@ -28,9 +28,9 @@ describe("PAGE_SIZE 常量", () => {
   });
 });
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("listSkills 返回空结果", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listSkills()).resolves.toEqual({ items: [], total: 0 });
       await expect(listSkills({ category: "运镜", q: "推", page: 2 })).resolves.toEqual(
@@ -42,16 +42,16 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
         total: 0,
       });
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("listCategories 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listCategories()).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -60,7 +60,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：插入 3 条（2 条 category=A 其中 1 条 removed、1 条 category=B） */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("listSkills / listCategories 连库查询", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("listSkills / listCategories 连库查询", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const catA = `测试分类甲-${uniq}`;
   const catB = `测试分类乙-${uniq}`;
@@ -150,7 +150,7 @@ describe.skipIf(!process.env.DATABASE_URL)("listSkills / listCategories 连库�
 /* 连库：sort=new/hot 排序（终审 F4，独立数据组不干扰上方断言）          */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("listSkills sort 排序连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("listSkills sort 排序连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const hotCategory = `热度分类-${uniq}`;
 

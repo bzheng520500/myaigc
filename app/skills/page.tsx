@@ -7,12 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listCategories, listSkills, PAGE_SIZE } from "@/lib/queries/skills";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Skill 库列表页（Task 6）。
  *
  * - URL 参数：?category=&q=&page=（筛选变更回到第 1 页）
- * - ISR 300s：由 listSkills / listCategories 的 "use cache" + cacheLife 承载
- *   （cacheComponents 模式，项目无 export const revalidate）
+ * - listSkills / listCategories 直接查 D1（每次请求实时）
  * - 搜索：原生 GET form 提交到本页，无客户端 JS 依赖
  */
 
@@ -54,7 +55,7 @@ const filterLinkActiveClass =
   "rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent-soft-fg";
 
 export default function SkillsPage(props: SkillsPageProps) {
-  // cacheComponents 下 await searchParams 必须在 <Suspense> 内（Task 14 fix）
+  // await searchParams 必须在 <Suspense> 内（Task 14 fix）
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-6xl flex-1" aria-busy="true" />}>
       <SkillsContent {...props} />

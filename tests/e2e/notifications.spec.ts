@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../../lib/db";
 import { forums, notifications, replies, threads, users } from "../../lib/db/schema";
+import { ensureLocalDb } from "./helpers/d1";
 import { loginViaLink } from "./helpers/login";
 
 /**
@@ -9,9 +10,10 @@ import { loginViaLink } from "./helpers/login";
  * 双账号 A 发帖 → B 回复 + 点赞 → A 铃铛红点 ≥2 → 通知中心见条目 →
  * 点击跳源消除一条红点 → 全部已读 → 铃铛红点清零。
  *
- * 运行前置：DATABASE_URL（Neon 连接串）、AUTH_DEV_MODE=1（魔法链接
- * 落盘登录，见 tests/e2e/helpers/login.ts）；未设置 DATABASE_URL 时
- * 整个文件 skip（与 forum-post.spec.ts 同模式）。
+ * 运行前置：本地 D1（`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`）、
+ * AUTH_DEV_MODE=1（魔法链接落盘登录，见 tests/e2e/helpers/login.ts）；
+ * 未设置 D1_LOCAL_TEST 时整个文件 skip（与 forum-post.spec.ts 同模式）。
+ * 真实连库在 Phase E 接入。
  *
  * 双账号：同一 page 串行 loginViaLink 两次（不同邮箱），B 的 session
  * cookie 覆盖 A 的；A 二次登录受同邮箱 60s 发信频控
@@ -23,8 +25,8 @@ import { loginViaLink } from "./helpers/login";
  * 外键逆序清理（通知按 A/B 用户 id 删，登录用户保留无妨，brief 授权）。
  */
 
-// 无库守卫：无 DATABASE_URL 的环境整个文件 skip
-test.skip(!process.env.DATABASE_URL, "需要 DATABASE_URL");
+// 无库守卫：未启用本地 D1 连库测试的环境整个文件 skip
+test.skip(process.env.D1_LOCAL_TEST !== "1", "需要 D1_LOCAL_TEST=1（本地 D1）");
 
 const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const forumSlug = `p3b2-notify-${uniq}`;
@@ -36,6 +38,9 @@ let threadId: string | null = null;
 /** 双账号邮箱（afterAll 查用户 id 删通知用） */
 let emailA = `e2e-notify-a-${uniq}@test.local`;
 const emailB = `e2e-notify-b-${uniq}@test.local`;
+
+// 直插库前注入本地 D1 绑定：必须是本文件第一个 beforeAll（钩子按注册序执行）
+test.beforeAll(ensureLocalDb);
 
 test.beforeAll(async () => {
   const [forum] = await db

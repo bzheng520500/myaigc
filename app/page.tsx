@@ -6,12 +6,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getHomeData, type HotThreadRow } from "@/lib/queries/home";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 首页（Task 5）：Hero → 四格统计 → 三入口 → 精选 Skill → 最新上传 → 论坛热帖。
  *
- * 缓存：next.config.ts 开启 cacheComponents（Next.js 16 已移除
- * `export const revalidate` 段配置），ISR 语义由 getHomeData 的
- * "use cache" + cacheLife（revalidate = REVALIDATE_CONTENT）承载。
+ * 渲染：Cloudflare Workers 的 setTimeout 实现无法推进 Next 的
+ * cacheComponents/PPR 调度（页面会 hang），因此关闭该特性并由
+ * 本文件声明 force-dynamic，数据每次请求实时读取 D1。
  */
 
 const CATEGORY_ENTRIES = [

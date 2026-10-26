@@ -1,7 +1,7 @@
 import { eq, like } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, setDbForTesting } from "@/lib/db";
 import { skills, users } from "@/lib/db/schema";
 import { uploadSkill } from "@/lib/actions/upload";
 import { parseSkillMd } from "@/lib/frontmatter";
@@ -11,7 +11,7 @@ import { parseSkillMd } from "@/lib/frontmatter";
  *
  * - 纯逻辑（无库可跑）：未登录 / 超 100KB / 坏 frontmatter 三态，
  *   分支顺序保证这三个错误在任何数据库调用之前返回
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   成功插入断言 source="user" + category 默认；10 分钟 3 条限流
  *
  * mock 说明（与 comments.test.ts 同模式）：
@@ -106,34 +106,42 @@ describe("uploadSkill 前置分支（纯逻辑）", () => {
 /* mock db：insert 唯一冲突（23505）重试 + 异常兜底                    */
 /* ---------------------------------------------------------------- */
 
+/**
+ * `db` 是惰性绑定 Proxy（lib/db/index.ts），属性不存在于 Proxy target 上，
+ * `vi.spyOn(db, "select")` 会报 "The property is not defined"；改用官方
+ * 注入入口 `setDbForTesting(fake)` 提供最小假实例。
+ */
 describe("uploadSkill insert 冲突重试（mock db）", () => {
   beforeEach(() => {
     authMock.mockReset();
-    // 置空 DATABASE_URL：让 ensureUniqueSlug 走不触库分支（原样返回
-    // base）。否则设置了 DATABASE_URL 的环境下它会经同一个被 spyOn
-    // 的 db.select 调 .limit(1)，而 mock 短链没有 .limit → TypeError
-    // （与 slug.test.ts 无库用例同模式）
-    vi.stubEnv("DATABASE_URL", "");
+    setDbForTesting(null);
   });
 
   afterEach(() => {
-    // 只还原 spyOn 的 db.select / db.insert，不影响模块级 mock
+    setDbForTesting(null);
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
   });
 
-  /** 限流查询：db.select({n}).from(skills).where(...) → [{ n: 0 }] */
-  function mockRateLimitOk() {
-    vi.spyOn(db, "select").mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([{ n: 0 }]),
+  /**
+   * 最小假 drizzle 实例：
+   * - select 链：`db.select({n}).from(skills).where(...)`（限流，await 得
+   *   [{ n: 0 }]）；`...where(...).limit(1)`（ensureUniqueSlug 查重，得 []）。
+   *   同一个返回值既是 thenable 又带 .limit，兼容两条调用链。
+   * - insert 链：`db.insert(skills).values(...)`，values 由用例注入。
+   */
+  function useFakeDb(values: ReturnType<typeof vi.fn>) {
+    const whereResult = Object.assign(Promise.resolve([{ n: 0 }]), {
+      limit: vi.fn().mockResolvedValue([]),
+    });
+    const fake = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue(whereResult),
+        }),
       }),
-    } as never);
-  }
-
-  /** mock db.insert(skills) 返回链式 .values（按序注入 reject / resolve） */
-  function mockInsertValues(values: ReturnType<typeof vi.fn>) {
-    vi.spyOn(db, "insert").mockReturnValue({ values } as never);
+      insert: vi.fn().mockReturnValue({ values }),
+    };
+    setDbForTesting(fake);
   }
 
   function pgError(code: string): Error & { code: string } {
@@ -143,12 +151,11 @@ describe("uploadSkill insert 冲突重试（mock db）", () => {
 
   it("首次插入撞唯一约束（23505）→ 重算 slug 重试一次成功", async () => {
     loginAs(crypto.randomUUID());
-    mockRateLimitOk();
     const values = vi
       .fn()
       .mockRejectedValueOnce(pgError("23505"))
       .mockResolvedValueOnce(undefined);
-    mockInsertValues(values);
+    useFakeDb(values);
 
     const result = await uploadSkill(VALID_MD, "小说创作");
     expect(result.ok).toBe(true);
@@ -157,9 +164,8 @@ describe("uploadSkill insert 冲突重试（mock db）", () => {
 
   it("两次插入都撞唯一约束 → 中文错误，不裸抛", async () => {
     loginAs(crypto.randomUUID());
-    mockRateLimitOk();
     const values = vi.fn().mockRejectedValue(pgError("23505"));
-    mockInsertValues(values);
+    useFakeDb(values);
 
     await expect(uploadSkill(VALID_MD, "小说创作")).resolves.toEqual({
       ok: false,
@@ -170,9 +176,8 @@ describe("uploadSkill insert 冲突重试（mock db）", () => {
 
   it("非唯一冲突的 DB 异常 → 直接中文错误，不重试", async () => {
     loginAs(crypto.randomUUID());
-    mockRateLimitOk();
     const values = vi.fn().mockRejectedValue(pgError("42P01"));
-    mockInsertValues(values);
+    useFakeDb(values);
 
     await expect(uploadSkill(VALID_MD, "小说创作")).resolves.toEqual({
       ok: false,
@@ -180,13 +185,48 @@ describe("uploadSkill insert 冲突重试（mock db）", () => {
     });
     expect(values).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * D1（SQLite）唯一约束：并发撞 slug 时错误码是 SQLITE_CONSTRAINT_UNIQUE
+   * （message 含 "UNIQUE constraint failed"），必须与 PG 23505 一样触发
+   * slug 重算重试，否则并发上传会直接失败。
+   */
+  it("D1：SQLite 唯一约束错误码也应触发 slug 重算重试", async () => {
+    loginAs(crypto.randomUUID());
+    const sqliteUniqueError = Object.assign(
+      new Error("UNIQUE constraint failed: skills.slug"),
+      { code: "SQLITE_CONSTRAINT_UNIQUE" },
+    );
+    const values = vi
+      .fn()
+      .mockRejectedValueOnce(sqliteUniqueError)
+      .mockResolvedValueOnce(undefined);
+    useFakeDb(values);
+
+    const result = await uploadSkill(VALID_MD, "小说创作");
+    expect(result.ok).toBe(true);
+    expect(values).toHaveBeenCalledTimes(2);
+  });
+
+  it("D1：code 丢失但 message 含 UNIQUE constraint failed → 同样重试", async () => {
+    loginAs(crypto.randomUUID());
+    const values = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("UNIQUE constraint failed: skills.slug"))
+      .mockResolvedValueOnce(undefined);
+    useFakeDb(values);
+
+    const result = await uploadSkill(VALID_MD, "小说创作");
+    expect(result.ok).toBe(true);
+    expect(values).toHaveBeenCalledTimes(2);
+  });
 });
 
 /* ---------------------------------------------------------------- */
 /* 连库：成功插入 + category 默认 + 限流                              */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("uploadSkill 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("uploadSkill 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const authorEmail = `task11-uploader-${uniq}@test.local`;
   const seedSlugPrefix = `task11-seed-${uniq}`;

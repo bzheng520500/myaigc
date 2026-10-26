@@ -32,12 +32,22 @@ export type UploadSkillResult =
   | { ok: true; slug: string }
   | { ok: false; error: string };
 
-/** PG 唯一约束冲突（如 skills.slug unique 撞车）的 error code */
+/**
+ * 唯一约束冲突判断（slug 撞车重试用）。兼容两代数据库：
+ * - PG（迁移前遗留）：error.code === "23505"（unique_violation）
+ * - SQLite / D1：error.code 含 "SQLITE_CONSTRAINT"（如
+ *   SQLITE_CONSTRAINT_UNIQUE），或 error.message 含
+ *   "UNIQUE constraint failed"（D1 经 drizzle 包装后 code 可能丢失）
+ */
 function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  if (code === "23505") return true;
+  if (typeof code === "string" && code.includes("SQLITE_CONSTRAINT")) {
+    return true;
+  }
   return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === "23505"
+    typeof message === "string" && message.includes("UNIQUE constraint failed")
   );
 }
 
@@ -84,7 +94,8 @@ export async function uploadSkill(
 
   // 6. slug 去重（中文名转拼音）并插入，content 存 raw 原文（含 frontmatter）。
   //    ensureUniqueSlug 是 check-then-insert，非原子：并发同 base 时可能
-  //    撞 skills.slug 唯一约束（PG 23505），此时重算 slug 重试一次；
+  //    撞 skills.slug 唯一约束（D1/SQLite 报 UNIQUE constraint failed，
+  //    PG 遗留 23505 同样识别），此时重算 slug 重试一次；
   //    二次仍失败或任何其他 DB 异常 → 中文错误，不向客户端裸抛。
   const base = slugify(parsed.name);
   let slug: string | null = null;

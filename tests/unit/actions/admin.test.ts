@@ -25,7 +25,7 @@ import { comments, skills, tutorials, users } from "@/lib/db/schema";
  * - 纯逻辑（无库可跑）：requireAdmin 三态（null session / user / admin）；
  *   action 前置分支（auth 抛错 / 无 session / 非 admin → forbidden；
  *   非 UUID id → invalid）——分支顺序保证这些错误在任何数据库调用之前返回
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   非 admin 调用 → forbidden 且库未变；admin 调用 → 状态变更；
  *   listAdminData → 行投影与 80 字截断
  *
@@ -135,7 +135,7 @@ describe("admin actions 前置分支（纯逻辑）", () => {
 /* 连库：权限拒绝 + 状态变更 + listAdminData 投影                      */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("admin actions 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("admin actions 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const adminEmail = `task12-admin-${uniq}@test.local`;
   const userEmail = `task12-user-${uniq}@test.local`;

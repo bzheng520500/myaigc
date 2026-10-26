@@ -19,7 +19,7 @@ import { createNotification } from "@/lib/notify";
  *   供 /api/me/interactions 路由给按钮组件挂载拉取初始状态。
  *
  * auth() 无请求上下文时抛错，按未登录处理（与 upload.ts / comments.ts 同模式）。
- * 不调 revalidatePath：点赞计数展示由 action 响应值驱动，无需失效 ISR。
+ * 不调 revalidatePath：点赞计数展示由 action 响应值驱动，页面无需失效。
  */
 
 /** 点赞目标类型（likes.target_type 合法值） */
@@ -36,8 +36,11 @@ export type ToggleFavoriteResult =
   | { ok: true; favorited: boolean }
   | { ok: false; error: "unauthorized" | "invalid" };
 
-/** getMyInteractions 入参 "type:id" 数组上限（防超大 in 查询） */
-const MAX_TARGETS = 100;
+/**
+ * getMyInteractions 入参 "type:id" 数组上限。D1 单条语句最多 100 个绑定参数，
+ * 每条 inArray 查询另带 userId + targetType 两个参数，故留余量取 90。
+ */
+const MAX_TARGETS = 90;
 
 const LIKE_TARGET_TYPES: ReadonlySet<string> = new Set([
   "thread",
@@ -48,7 +51,7 @@ const LIKE_TARGET_TYPES: ReadonlySet<string> = new Set([
 
 const FAVORITE_TARGET_TYPES: ReadonlySet<string> = new Set(["skill", "thread"]);
 
-/** target_id 为 uuid 列：非法格式触库前拒绝，避免 PG invalid input syntax */
+/** target_id 为 uuid 文本：非法格式触库前拒绝，省一次无谓查询（D1 不抛类型错） */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -128,10 +131,10 @@ export async function toggleLike(
   }
 
   // 3. 新赞判定：唯一约束冲突时 onConflictDoNothing 返回 0 行。
-  //    注意 insert 与计数 update 为分步语句（neon-http 无交互式事务，
-  //    与 upload.ts 的 check-then-insert 同类权衡）：并发双击下 ±1 执行
-  //    顺序可能交错（瞬时计数可为负），但唯一约束保证 +1 与 -1 各恰
-  //    一次，终态净零、绝不双 +1。
+  //    insert 与计数 update 必须分步：D1 无交互式事务，且 db.batch 的语句
+  //    发送前已编译、后一条拿不到本条 insert RETURNING 的行数，无法按
+  //    「是否新赞」分支。并发双击下 ±1 执行顺序可能交错（瞬时计数可为
+  //    负），但唯一约束保证 +1 与 -1 各恰一次，终态净零、绝不双 +1。
   const inserted = await db
     .insert(likes)
     .values({ userId, targetType, targetId })
@@ -204,8 +207,9 @@ export async function toggleFavorite(
     return { ok: true, favorited: true };
   }
 
-  // 4. 已藏 → 取消（重复取消幂等：0 行删除仍返回 favorited=false）
-  const deleted = await db
+  // 4. 已藏 → 取消。取消后的状态恒为「未收藏」：删到 0 行（并发下另一方
+  //    已删）也算成功，故不能把删除行数当作收藏状态返回。
+  await db
     .delete(favorites)
     .where(
       and(
@@ -213,10 +217,9 @@ export async function toggleFavorite(
         eq(favorites.targetType, targetType),
         eq(favorites.targetId, targetId),
       ),
-    )
-    .returning({ id: favorites.id });
+    );
 
-  return { ok: true, favorited: deleted.length > 0 };
+  return { ok: true, favorited: false };
 }
 
 export async function getMyInteractions(
@@ -246,10 +249,13 @@ export async function getMyInteractions(
     const type = raw.slice(0, sep);
     const id = raw.slice(sep + 1);
     if (!UUID_RE.test(id)) continue;
-    // 显式枚举判断（不用 `in`：原型链键如 toString 会误命中）
+    // 显式枚举判断（不用 `in`：原型链键如 toString 会误命中）。
+    // skill / thread 既是点赞目标也是收藏目标，两个集合都要登记——
+    // 写成 else if 会让这两类的收藏状态永远回查不到。
     if (LIKE_TARGET_TYPES.has(type)) {
       likeIds[type as LikeTarget].add(id);
-    } else if (FAVORITE_TARGET_TYPES.has(type)) {
+    }
+    if (FAVORITE_TARGET_TYPES.has(type)) {
       favoriteIds[type as FavoriteTarget].add(id);
     }
   }

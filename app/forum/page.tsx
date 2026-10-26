@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThreadRow } from "@/components/thread-row";
 import { listForums, listLatestThreads } from "@/lib/queries/forum";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 论坛首页（Task 2）：板块卡片网格 + 全站最新帖。
  *
- * - ISR 60s：由 listForums / listLatestThreads 的 "use cache" + cacheLife
- *   承载（cacheComponents 模式，项目无 export const revalidate）
+ * - listForums / listLatestThreads 直接查 D1（每次请求实时）
  * - 无动态参数（params / searchParams），页面组件直接 async
  *   （与 app/page.tsx 同模式，无 Suspense 壳要求）
  */

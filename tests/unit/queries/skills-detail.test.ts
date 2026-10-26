@@ -3,12 +3,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { skills, users } from "@/lib/db/schema";
 import { getSkillBySlug } from "@/lib/queries/skills";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * Skill 详情查询 getSkillBySlug（Task 7）
  *
- * - 纯逻辑：无 DATABASE_URL 兜底返回 null
- * - 连库：Neon 未就位时自动跳过，控制器 push 后设置 DATABASE_URL 即可执行
+ * - 纯逻辑：无库（D1 绑定不可用）兜底返回 null
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`
  *
  * cacheLife 在 Next cache scope 之外会 throw，mock 成 no-op（同 T6）。
  */
@@ -17,16 +18,16 @@ vi.mock("next/cache", () => ({
 }));
 
 /* ---------------------------------------------------------------- */
-/* 纯逻辑：无 DATABASE_URL 兜底                                        */
+/* 纯逻辑：无库（D1 绑定不可用）兜底                              */
 /* ---------------------------------------------------------------- */
 
-describe("无 DATABASE_URL 兜底", () => {
+describe("无库兜底（D1 绑定不可用）", () => {
   it("getSkillBySlug 返回 null", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(getSkillBySlug("any-slug")).resolves.toBeNull();
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -35,7 +36,7 @@ describe("无 DATABASE_URL 兜底", () => {
 /* 连库：1 位作者 + 1 published（带作者/frontmatter）+ 1 removed        */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("getSkillBySlug 连库查询", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("getSkillBySlug 连库查询", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const slugPublished = `task7-published-${uniq}`;
   const slugRemoved = `task7-removed-${uniq}`;

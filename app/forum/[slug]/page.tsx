@@ -12,12 +12,14 @@ import {
   type ListThreadsOptions,
 } from "@/lib/queries/forum";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 板块页（Task 2）：板块头 + 排序 Tab + 帖子列表 + 分页。
  *
  * - URL 参数：?sort=last_reply|created（默认 last_reply）+ ?page=
- * - ISR 60s：由 getForumBySlug / listThreads 的 "use cache" + cacheLife 承载
- * - cacheComponents 下 await params / searchParams 必须在 <Suspense> 内
+ * - getForumBySlug / listThreads 直接查 D1（每次请求实时）
+ * - await params / searchParams 必须在 <Suspense> 内
  *   （default export 为 sync 壳，与 app/skills/page.tsx 同模式）
  */
 

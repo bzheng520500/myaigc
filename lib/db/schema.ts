@@ -4,36 +4,39 @@
  * 共 12 张业务表（6 内容 + 6 社区）+ Auth.js 适配器所需的
  * accounts / sessions / verificationTokens（users 与业务字段合并为一张）。
  *
- * Auth.js 四表按 @auth/drizzle-adapter 官方 PostgreSQL 约定：
+ * Auth.js 四表按 @auth/drizzle-adapter 官方 SQLite 约定：
  * 数据库表名 user / account / session / verificationToken，导出对象名用复数。
+ * 时间列统一存 Unix 毫秒（integer timestamp_ms），布尔列存 0/1。
  */
+import { sql } from "drizzle-orm";
 import {
-  boolean,
   index,
   integer,
-  pgTable,
   primaryKey,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 /* ------------------------------------------------------------------ */
 /* users —— Auth.js 合并表（官方字段 + 业务字段 role / notify_email_enabled） */
 /* ------------------------------------------------------------------ */
 
-export const users = pgTable("user", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const users = sqliteTable("user", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   name: text("name"), // 默认取邮箱前缀（应用层处理）
   email: text("email").unique().notNull(),
-  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
   image: text("image"),
   role: text("role").default("user").notNull(), // user / admin
-  notifyEmail: boolean("notify_email_enabled").default(true).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
+  notifyEmail: integer("notify_email_enabled", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(unixepoch() * 1000)`)
     .notNull(),
 });
 
@@ -41,27 +44,29 @@ export const users = pgTable("user", {
 /* skills —— 技能文档（内置导入 + 用户上传）                              */
 /* ------------------------------------------------------------------ */
 
-export const skills = pgTable(
+export const skills = sqliteTable(
   "skills",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     slug: text("slug").unique().notNull(),
     name: text("name").notNull(),
     description: text("description"),
     contentMd: text("content_md").notNull(),
     category: text("category").notNull(),
-    tags: text("tags").array(),
-    authorId: uuid("author_id").references(() => users.id), // 内置内容无作者，可空
+    tags: text("tags", { mode: "json" }).$type<string[]>(),
+    authorId: text("author_id").references(() => users.id), // 内置内容无作者，可空
     source: text("source"), // builtin / user
     status: text("status").default("published").notNull(), // published / removed
     viewCount: integer("view_count").default(0).notNull(),
     copyCount: integer("copy_count").default(0).notNull(),
     likeCount: integer("like_count").default(0).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -76,8 +81,10 @@ export const skills = pgTable(
 /* prompts —— 运镜提示词条目                                             */
 /* ------------------------------------------------------------------ */
 
-export const prompts = pgTable("prompts", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const prompts = sqliteTable("prompts", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   category: text("category").notNull(), // 基础运镜 / 组合运镜 / 特效运镜 / 电影级组合
   promptEn: text("prompt_en").notNull(),
@@ -87,8 +94,8 @@ export const prompts = pgTable("prompts", {
   sourceDoc: text("source_doc"),
   sortOrder: integer("sort_order"),
   copyCount: integer("copy_count").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(unixepoch() * 1000)`)
     .notNull(),
 });
 
@@ -96,16 +103,18 @@ export const prompts = pgTable("prompts", {
 /* tutorials —— 运镜教学                                                 */
 /* ------------------------------------------------------------------ */
 
-export const tutorials = pgTable("tutorials", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const tutorials = sqliteTable("tutorials", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   slug: text("slug").unique().notNull(),
   title: text("title").notNull(),
   summary: text("summary"),
   contentMd: text("content_md").notNull(),
   category: text("category").default("运镜教学").notNull(),
   sortOrder: integer("sort_order"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(unixepoch() * 1000)`)
     .notNull(),
 });
 
@@ -113,20 +122,22 @@ export const tutorials = pgTable("tutorials", {
 /* comments —— 内容评论（skill / tutorial 多态，无目标外键）               */
 /* ------------------------------------------------------------------ */
 
-export const comments = pgTable(
+export const comments = sqliteTable(
   "comments",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     targetType: text("target_type").notNull(), // skill / tutorial
-    targetId: uuid("target_id").notNull(), // 多态目标，应用层保证存在
+    targetId: text("target_id").notNull(), // 多态目标，应用层保证存在
     content: text("content").notNull(), // 限 2000 字（应用层校验）
     status: text("status").default("visible").notNull(), // visible / hidden
     likeCount: integer("like_count").default(0).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -139,45 +150,49 @@ export const comments = pgTable(
 /* forums / threads / replies —— 论坛（Phase 2）                         */
 /* ------------------------------------------------------------------ */
 
-export const forums = pgTable("forums", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const forums = sqliteTable("forums", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order"),
   threadCount: integer("thread_count").default(0).notNull(),
   replyCount: integer("reply_count").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(unixepoch() * 1000)`)
     .notNull(),
 });
 
-export const threads = pgTable(
+export const threads = sqliteTable(
   "threads",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    forumId: uuid("forum_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    forumId: text("forum_id")
       .notNull()
       .references(() => forums.id),
-    authorId: uuid("author_id")
+    authorId: text("author_id")
       .notNull()
       .references(() => users.id),
     title: text("title").notNull(), // 限 100 字（应用层校验）
     contentMd: text("content_md").notNull(), // 限 50KB（应用层校验）
     status: text("status").default("published").notNull(), // published / hidden（先发后审）
-    isPinned: boolean("is_pinned").default(false).notNull(),
-    isLocked: boolean("is_locked").default(false).notNull(),
+    isPinned: integer("is_pinned", { mode: "boolean" }).default(false).notNull(),
+    isLocked: integer("is_locked", { mode: "boolean" }).default(false).notNull(),
     replyCount: integer("reply_count").default(0).notNull(),
     viewCount: integer("view_count").default(0).notNull(),
     likeCount: integer("like_count").default(0).notNull(),
-    lastReplyAt: timestamp("last_reply_at", { withTimezone: true })
-      .defaultNow()
+    lastReplyAt: integer("last_reply_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(), // 板块页排序依据，发帖时等于 created_at
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -186,20 +201,22 @@ export const threads = pgTable(
   ],
 );
 
-export const replies = pgTable("replies", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  threadId: uuid("thread_id")
+export const replies = sqliteTable("replies", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  threadId: text("thread_id")
     .notNull()
     .references(() => threads.id),
-  authorId: uuid("author_id")
+  authorId: text("author_id")
     .notNull()
     .references(() => users.id),
   contentMd: text("content_md").notNull(), // 限 10KB（应用层校验）
   floorNumber: integer("floor_number").notNull(), // 楼层号，事务内自增（应用层生成）
   status: text("status").default("visible").notNull(), // visible / hidden
   likeCount: integer("like_count").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(unixepoch() * 1000)`)
     .notNull(),
 });
 
@@ -207,17 +224,19 @@ export const replies = pgTable("replies", {
 /* likes / favorites —— 点赞与收藏（Phase 3）                             */
 /* ------------------------------------------------------------------ */
 
-export const likes = pgTable(
+export const likes = sqliteTable(
   "likes",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     targetType: text("target_type").notNull(), // thread / reply / comment / skill
-    targetId: uuid("target_id").notNull(), // 多态目标，应用层保证存在
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    targetId: text("target_id").notNull(), // 多态目标，应用层保证存在
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -229,17 +248,19 @@ export const likes = pgTable(
   ],
 );
 
-export const favorites = pgTable(
+export const favorites = sqliteTable(
   "favorites",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     targetType: text("target_type").notNull(), // skill / thread
-    targetId: uuid("target_id").notNull(), // 多态目标，应用层保证存在
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    targetId: text("target_id").notNull(), // 多态目标，应用层保证存在
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -255,20 +276,22 @@ export const favorites = pgTable(
 /* notifications —— 通知（Phase 3）                                       */
 /* ------------------------------------------------------------------ */
 
-export const notifications = pgTable(
+export const notifications = sqliteTable(
   "notifications",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id), // 接收者
-    actorId: uuid("actor_id").references(() => users.id), // 触发者（系统通知可空）
+    actorId: text("actor_id").references(() => users.id), // 触发者（系统通知可空）
     type: text("type").notNull(), // thread_reply / reply_reply / skill_comment / like
     sourceType: text("source_type").notNull(), // thread / reply / comment / skill
-    sourceId: uuid("source_id").notNull(), // 跳转目标
-    readAt: timestamp("read_at", { withTimezone: true }), // 空 = 未读
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    sourceId: text("source_id").notNull(), // 跳转目标
+    readAt: integer("read_at", { mode: "timestamp_ms" }), // 空 = 未读
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(unixepoch() * 1000)`)
       .notNull(),
   },
   (t) => [
@@ -278,13 +301,13 @@ export const notifications = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
-/* Auth.js 表 —— 官方 PostgreSQL schema（@auth/drizzle-adapter 约定）      */
+/* Auth.js 表 —— 官方 SQLite schema（@auth/drizzle-adapter 约定）         */
 /* ------------------------------------------------------------------ */
 
-export const accounts = pgTable(
+export const accounts = sqliteTable(
   "account",
   {
-    userId: uuid("userId")
+    userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     type: text("type").$type<AdapterAccountType>().notNull(),
@@ -305,20 +328,20 @@ export const accounts = pgTable(
   ],
 );
 
-export const sessions = pgTable("session", {
+export const sessions = sqliteTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
-  userId: uuid("userId")
+  userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { mode: "date" }).notNull(),
+  expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokens = sqliteTable(
   "verificationToken",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
-    expires: timestamp("expires", { mode: "date" }).notNull(),
+    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
   },
   (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })],
 );

@@ -5,7 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
  * E2E 登录共享 helpers（Phase 2 Task 3 从 phase1.spec.ts 抽出）。
  *
  * 运行前置（连库执行由控制器统一跑，spec 侧只做声明）：
- * - DATABASE_URL：Neon 连接串（未设置时 spec 顶层 skip）
+ * - D1_LOCAL_TEST=1：本地 D1 连库开关（未设置时 spec 顶层 skip）
  * - AUTH_DEV_MODE=1：lib/auth.ts 走 DEV 分支（不调 Resend）
  * - E2E_TOKEN_URL_FILE：设置后 lib/auth.ts 把魔法链接追加写入该文件
  *   （两侧默认值均为 .next/e2e-login-url.txt，相对 dev server cwd）

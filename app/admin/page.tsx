@@ -5,10 +5,12 @@ import { auth } from "@/lib/auth";
 import { listAdminData, listForumAdminData } from "@/lib/actions/admin";
 import { AdminClient } from "./admin-client";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 管理后台页面（Task 12，server 壳）。
  *
- * - cacheComponents 下 auth()（读 cookies）必须位于 <Suspense>
+ * - auth()（读 cookies）必须位于 <Suspense>
  *   边界内的异步子组件（参照 upload 页模式）
  * - 无 session → redirect /login?returnUrl=/admin（middleware 已拦，
  *   此处兜底）；role!=="admin" → 渲染「无权限」提示页（不 redirect）

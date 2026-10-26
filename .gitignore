@@ -11,6 +11,8 @@
 !.yarn/versions
 
 # testing
+/test-results/
+/playwright-report/
 /coverage
 
 # next.js
@@ -41,6 +43,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# drizzle-kit local artifacts (schema is applied via `drizzle-kit push`)
-/drizzle/*
-!/drizzle/.gitkeep
+# cloudflare (opennext build output / wrangler local state / local secrets)
+/.open-next/
+/.wrangler/
+.dev.vars
+.dev.vars.*
+
+# drizzle: 迁移 SQL 与 meta 必须入库（wrangler d1 migrations apply 依赖）
+/drizzle/*.log

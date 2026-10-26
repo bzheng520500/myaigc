@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { forums, replies, threads, users } from "@/lib/db/schema";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 import {
   getForumBySlug,
   getThreadById,
@@ -15,8 +16,8 @@ import {
 /**
  * 论坛查询（Phase 2 Task 1）。
  *
- * - 纯逻辑：THREADS_PAGE_SIZE 常量、无 DATABASE_URL 兜底（stub 后直接调用）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 纯逻辑：THREADS_PAGE_SIZE 常量、无库（D1 绑定不可用）兜底返回空
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   探针数据：2 板块（sort 递增）+ 4 帖（置顶 / 双排序序不同 / hidden）+ 3 回复（1 hidden）
  *
  * cacheLife 在 Next cache scope 之外会 throw（vitest 无该运行时），
@@ -36,18 +37,18 @@ describe("THREADS_PAGE_SIZE 常量", () => {
   });
 });
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("listForums 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listForums()).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("listThreads 返回空结果", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(
         listThreads("creation", { sort: "last_reply" }),
@@ -56,48 +57,48 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
         listThreads("creation", { sort: "created", page: 3 }),
       ).resolves.toEqual({ items: [], total: 0 });
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("getThreadById 返回 null", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(
         getThreadById("0b2b0e35-0a44-4a5e-a3af-6d3349cd00f1"),
       ).resolves.toBeNull();
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("listReplies 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(
         listReplies("0b2b0e35-0a44-4a5e-a3af-6d3349cd00f1"),
       ).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("listLatestThreads 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listLatestThreads(10)).resolves.toEqual([]);
       await expect(listLatestThreads(NaN)).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("getForumBySlug 返回 null", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(getForumBySlug("creation")).resolves.toBeNull();
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -106,7 +107,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：2 板块 + 4 帖（置顶 1 / 双排序序相反 2 / hidden 1）+ 3 回复    */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)(
+describe.skipIf(!process.env.D1_LOCAL_TEST)(
   "listForums / listThreads / getThreadById / listReplies 连库查询",
   () => {
     const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

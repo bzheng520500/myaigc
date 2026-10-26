@@ -1,15 +1,12 @@
-import { and, asc, count, eq, ilike, or, type SQL } from "drizzle-orm";
-import { cacheLife } from "next/cache";
-import { REVALIDATE_CONTENT } from "@/lib/constants";
-import { db } from "@/lib/db";
+import { and, asc, count, eq, like, or, type SQL } from "drizzle-orm";
+import { db, isDbAvailable } from "@/lib/db";
 import { prompts, type Prompt } from "@/lib/db/schema";
 
 /**
  * 运镜提示词库列表查询（Task 8）。
  *
- * 缓存策略与 lib/queries/skills.ts 一致：next.config.ts 开启 cacheComponents，
- * ISR 语义由函数级 "use cache" + cacheLife 承载——revalidate = 300s。
- * 页面的 category / q / page 筛选会改变入参，"use cache" 按参数分别缓存。
+ * 缓存：无。Cloudflare Workers 不支持 cacheComponents/PPR（页面会
+ * hang），页面统一 force-dynamic，本文件查询每次请求实时读 D1。
  */
 
 /** 每页条数（列表页与 Pagination 共用） */
@@ -47,16 +44,28 @@ export type ListPromptsOptions = {
   page?: number;
 };
 
-/** 组装过滤条件：category 精确匹配 + q 对 name/promptZh ILIKE（中文搜索为主） */
+/**
+ * D1 对 LIKE 模式有 50 字节硬上限（含两侧通配符）：关键词按码点截到 12 个
+ * 字符（UTF-8 单字符最多 4 字节 → 48 字节 + 2 个 % = 50），防止超长搜索词
+ * 让查询直接报错。
+ */
+function toLikePattern(term: string): string {
+  return `%${Array.from(term).slice(0, 12).join("")}%`;
+}
+
+/**
+ * 组装过滤条件：category 精确匹配 + q 对 name/promptZh LIKE（中文搜索为主）。
+ * D1（SQLite）无 ILIKE：用 LIKE（ASCII 默认大小写不敏感，中文按字节比较）。
+ */
 function buildFilters({ category, q }: ListPromptsOptions): SQL | undefined {
   const filters: (SQL | undefined)[] = [];
   if (category) {
     filters.push(eq(prompts.category, category));
   }
   if (q) {
-    const pattern = `%${q}%`;
+    const pattern = toLikePattern(q);
     filters.push(
-      or(ilike(prompts.name, pattern), ilike(prompts.promptZh, pattern)),
+      or(like(prompts.name, pattern), like(prompts.promptZh, pattern)),
     );
   }
   return and(...filters);
@@ -65,11 +74,9 @@ function buildFilters({ category, q }: ListPromptsOptions): SQL | undefined {
 export async function listPrompts(
   opts: ListPromptsOptions = {},
 ): Promise<{ items: PromptRow[]; total: number }> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空数据，页面不 crash
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return { items: [], total: 0 };
   }
 
@@ -92,11 +99,9 @@ export async function listPrompts(
 }
 
 export async function listPromptCategories(): Promise<string[]> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: REVALIDATE_CONTENT, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空数组，页面不 crash
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return [];
   }
 

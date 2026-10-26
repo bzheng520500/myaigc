@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
 import { getProfile, PROFILE_LIST_LIMIT } from "@/lib/queries/profile";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 用户主页（Phase 3 Task 3，server 动态页）。
  *
@@ -16,8 +18,8 @@ import { getProfile, PROFILE_LIST_LIMIT } from "@/lib/queries/profile";
  * - 三页签（帖子 / 上传 / 收藏）：链接式 Tab，server 端按 ?tab= 切换
  *   （同板块页排序切换模式，非 client Tabs）
  * - 本人视角额外「编辑资料」按钮：auth() 在 <Suspense> 内的异步
- *   内容组件中调用（cacheComponents 下读 cookies 必须在边界内）
- * - 个人数据禁缓存（getProfile 无 "use cache"），每次请求真实查询
+ *   内容组件中调用（读 cookies 必须在边界内）
+ * - 个人数据禁缓存（getProfile 直接查 D1），每次请求真实查询
  * - 分页不做（YAGNI）：每列表固定最近 20 条，页签区注明
  */
 
@@ -56,7 +58,7 @@ const TAB_LABELS: Record<ProfileTab, string> = {
 };
 
 export default function ProfilePage(props: ProfilePageProps) {
-  // cacheComponents 下 await params / searchParams 必须在 <Suspense> 内
+  // await params / searchParams 必须在 <Suspense> 内
   return (
     <Suspense
       fallback={<main className="mx-auto w-full max-w-4xl flex-1" aria-busy="true" />}

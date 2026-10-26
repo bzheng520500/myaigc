@@ -1,12 +1,12 @@
 import { and, desc, eq, ne } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { favorites, forums, skills, threads, users, type Skill } from "@/lib/db/schema";
 import type { ThreadListItem } from "@/lib/queries/forum";
 
 /**
  * 用户主页查询（Phase 3 Task 3）。
  *
- * 个人数据禁缓存：本文件所有查询都不加 "use cache"（与
+ * 个人数据禁缓存：本文件所有查询都直接查 D1（与
  * listNotifications 同策略）——帖子 / 上传 / 收藏列表是请求时
  * 真实状态，且本人视角随登录态变化，缓存反而展示陈旧内容。
  *
@@ -18,7 +18,10 @@ import type { ThreadListItem } from "@/lib/queries/forum";
 /** 三列表（帖子 / 上传 / 收藏）每列表固定条数（分页不做，YAGNI） */
 export const PROFILE_LIST_LIMIT = 20;
 
-/** users.id 为 uuid 列：非法格式直接视为用户不存在，避免 PG invalid input syntax */
+/**
+ * users.id 为 uuid：非法格式直接视为用户不存在。
+ * D1（SQLite）下 id 是 text，非法 id 只会查不到；保留校验只为省一次查询。
+ */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -55,9 +58,12 @@ export type UserProfile = {
  */
 export async function getProfile(userId: string): Promise<UserProfile | null> {
   // 无数据库环境（如纯静态构建）：视为不存在
-  if (!process.env.DATABASE_URL || !UUID_RE.test(userId)) {
+  if (!isDbAvailable() || !UUID_RE.test(userId)) {
     return null;
   }
+
+  // D1 的 text 主键大小写敏感（PG 的 uuid 列不敏感）：统一小写再查，保持等价
+  userId = userId.toLowerCase();
 
   const [user] = await db
     .select({

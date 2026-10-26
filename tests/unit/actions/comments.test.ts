@@ -14,8 +14,8 @@ import { validateCommentContent } from "@/lib/actions/comments-core";
  *
  * - 纯逻辑：content 校验三态；auth() 无请求上下文 / 无 session 时
  *   action 内部 try/catch 兜底返回 unauthorized（不触库）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过，
- *   控制器统一 push 后设置 DATABASE_URL 即可执行
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`
+ *   即可执行
  *
  * mock 说明：
  * - @/lib/auth：vitest 无 Next 请求上下文，auth() 由测试按需注入
@@ -112,7 +112,7 @@ describe("createComment 前置分支（纯逻辑）", () => {
 /* 连库：插入 / 限流 / 目标校验 / listComments                          */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("createComment / listComments 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("createComment / listComments 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const authorEmail = `task10-commenter-${uniq}@test.local`;
   const secondEmail = `task10-second-${uniq}@test.local`;

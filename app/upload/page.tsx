@@ -5,10 +5,12 @@ import { auth } from "@/lib/auth";
 import { SKILL_TEMPLATE } from "@/lib/frontmatter";
 import { UploadForm } from "./upload-form";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 上传页（Task 11，server 壳）。
  *
- * - cacheComponents 下 auth()（读 cookies）必须位于 <Suspense>
+ * - auth()（读 cookies）必须位于 <Suspense>
  *   边界内的异步子组件（参照 site-header / skill 详情页模式），
  *   读 session 即请求时执行，无需显式缓存指令
  * - 未登录 → redirect /login?returnUrl=/upload（Review Focus #5）

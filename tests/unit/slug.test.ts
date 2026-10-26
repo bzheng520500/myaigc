@@ -3,13 +3,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { skills } from "@/lib/db/schema";
 import { ensureUniqueSlug, slugify } from "@/lib/slug";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * 中文 slug 生成与冲突去重（Task 11，Review Focus #3 slug 冲突）。
  *
  * - slugify：纯逻辑（pinyin-pro 转拼音 + 归一化）
- * - ensureUniqueSlug：无库分支 stub DATABASE_URL；有库时连库用例
- *   自动启用（skipIf），slug 用唯一化前缀避免污染真实数据
+ * - ensureUniqueSlug：无库分支注入「D1 绑定不可用」；连库用例在
+ *   设置 D1_LOCAL_TEST=1 时启用（skipIf），slug 用唯一化前缀避免污染真实数据
  */
 
 describe("slugify 纯逻辑", () => {
@@ -36,12 +37,12 @@ describe("slugify 纯逻辑", () => {
 });
 
 describe("ensureUniqueSlug 无库 / 空串分支", () => {
-  it("无 DATABASE_URL → base 原样返回（不触库）", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+  it("无库（D1 绑定不可用）→ base 原样返回（不触库）", async () => {
+    const restore = simulateNoDatabase();
     try {
       await expect(ensureUniqueSlug("abc")).resolves.toBe("abc");
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
@@ -52,7 +53,7 @@ describe("ensureUniqueSlug 无库 / 空串分支", () => {
   });
 });
 
-describe.skipIf(!process.env.DATABASE_URL)("ensureUniqueSlug 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("ensureUniqueSlug 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const baseSlug = `task11-abc-${uniq}`;
 

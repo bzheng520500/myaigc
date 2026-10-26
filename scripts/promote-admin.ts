@@ -1,10 +1,9 @@
 /**
  * 提升管理员脚本（Task 12）。
  *
- * 用法（DATABASE_URL 需就位，.env 不会被 tsx 自动加载，用 Node 的
- * --env-file 注入）：
+ * 用法（自动连接 wrangler 本地 D1，见 scripts/d1.ts）：
  *
- *   npx tsx --env-file=.env scripts/promote-admin.ts <email>
+ *   npx tsx scripts/promote-admin.ts <email>
  *
  * 按 email 查 users 表：不存在 → 提示先用该邮箱登录一次（魔法链接
  * 登录时由 Auth.js adapter 创建用户行），存在 → 置 role="admin"。
@@ -12,18 +11,14 @@
  */
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { connectScriptDb } from "@/scripts/d1";
 import { users } from "@/lib/db/schema";
 
-async function main() {
+async function main(): Promise<number> {
   const email = process.argv[2]?.trim().toLowerCase();
   if (!email || !email.includes("@")) {
-    console.error("用法：npx tsx --env-file=.env scripts/promote-admin.ts <email>");
-    process.exit(1);
-  }
-
-  if (!process.env.DATABASE_URL) {
-    console.error("缺少 DATABASE_URL：请用 --env-file=.env 传入环境变量");
-    process.exit(1);
+    console.error("用法：npx tsx scripts/promote-admin.ts <email>");
+    return 1;
   }
 
   const [user] = await db
@@ -36,15 +31,29 @@ async function main() {
     console.error(
       `未找到邮箱 ${email} 对应的用户：请先用该邮箱登录一次（登录会自动创建用户），再重新执行本脚本。`,
     );
-    process.exit(1);
+    return 1;
   }
 
   await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
   console.log(`已将 ${user.email}（${user.id}）提升为管理员（原角色：${user.role}）。`);
-  process.exit(0);
+  return 0;
 }
 
-main().catch((error) => {
-  console.error("执行失败：", error);
-  process.exit(1);
-});
+/** 建立本地 D1 绑定并保证 dispose（tsx 无 Workers 运行时上下文） */
+async function run(): Promise<number> {
+  const d1 = await connectScriptDb();
+  try {
+    return await main();
+  } finally {
+    await d1.dispose();
+  }
+}
+
+run()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error) => {
+    console.error("执行失败：", error);
+    process.exitCode = 1;
+  });

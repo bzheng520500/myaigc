@@ -4,7 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { comments, skills, tutorials, users } from "@/lib/db/schema";
 import { createNotification } from "@/lib/notify";
 import { recentCount } from "@/lib/ratelimit";
@@ -30,7 +30,7 @@ import {
 /** 评论发送限流窗口（秒）：同用户 60s 内只允许 1 条 */
 const COMMENT_RATE_WINDOW_SEC = 60;
 
-/** comments.target_id 为 uuid 列：非法格式直接 not_found，避免 PG 抛 invalid input syntax */
+/** comments.target_id 为 uuid：非法格式直接 not_found（D1 下省一次无谓查询） */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -152,7 +152,7 @@ export async function listComments(
   targetId: string,
 ): Promise<CommentItem[]> {
   // 无数据库环境（如纯静态构建）：返回空列表，页面评论区走空态
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return [];
   }
 

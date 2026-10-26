@@ -13,14 +13,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatForumTime } from "@/components/thread-row";
 import { getThreadById, listReplies } from "@/lib/queries/forum";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 帖子详情页（Task 2）：帖子头 + Markdown 正文 + 楼层列表 + 回复表单
  * （Task 3 挂载 ReplyForm）。
  *
- * - ISR 60s：由 getThreadById / listReplies 的 "use cache" + cacheLife 承载
+ * - getThreadById / listReplies 直接查 D1（每次请求实时）
  * - hidden 帖或不存在 → notFound()（404，Review Focus #5）
  * - 作者名 span 不加链：Phase 3 用户主页路由上线后再挂 /u/[id]
- * - cacheComponents 下 await params / auth() 都必须在 <Suspense> 内
+ * - await params / auth() 都必须在 <Suspense> 内
  *   （generateMetadata 中的 await params 不受此限，与 skills/[slug] 同模式）
  * - auth() 读 session 判登录态，以 isLoggedIn 传给 client 的 ReplyForm
  *   （client 组件无法直接调 auth()，参照 CommentSection 模式）

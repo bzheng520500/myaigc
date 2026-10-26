@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../../lib/db";
 import { forums, replies, threads, users } from "../../lib/db/schema";
+import { ensureLocalDb } from "./helpers/d1";
 
 /**
  * 论坛浏览链路 E2E（Phase 2 Task 2，写不跑——运行由控制器统一执行）：
@@ -11,12 +12,13 @@ import { forums, replies, threads, users } from "../../lib/db/schema";
  * - #4 长标题不破版：100 字标题帖断言标题元素含 truncate class
  * - #5 hidden 帖直连：notFound() 返回 404 状态码
  *
- * 运行前置：DATABASE_URL（Neon 连接串，未设置时整个文件 skip）。
+ * 运行前置：本地 D1（`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
+ * 未设置时整个文件 skip；真实连库在 Phase E 接入）。
  * 探针数据直插库（drizzle），时间戳唯一化，afterAll 按外键逆序清理。
  */
 
-// 无库守卫：无 DATABASE_URL 的环境整个文件 skip（与 phase1.spec.ts 同模式）
-test.skip(!process.env.DATABASE_URL, "需要 DATABASE_URL");
+// 无库守卫：未启用本地 D1 连库测试的环境整个文件 skip（与 phase1.spec.ts 同模式）
+test.skip(process.env.D1_LOCAL_TEST !== "1", "需要 D1_LOCAL_TEST=1（本地 D1）");
 
 const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const forumSlug = `p2e2-forum-${uniq}`;
@@ -29,6 +31,9 @@ let userId: string;
 let threadIds: string[];
 let longThreadId: string;
 let hiddenThreadId: string;
+
+// 直插库前注入本地 D1 绑定：必须是本文件第一个 beforeAll（钩子按注册序执行）
+test.beforeAll(ensureLocalDb);
 
 test.beforeAll(async () => {
   const [user] = await db

@@ -18,7 +18,7 @@ import { forums, replies, threads, users } from "@/lib/db/schema";
  * 管理后台论坛 actions（Phase 2 Task 4）。
  *
  * - 纯逻辑（无库可跑）：slug 正则校验（中文 / 大写 / 过短均在触库前拒绝）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   setThreadFlags 置顶 + 部分更新 + hidden（getThreadById → null）；
  *   setReplyStatus hidden（listReplies 不含）；createForum 合法插入 /
  *   重名拒绝；updateForum 改名（slug 不变）；deleteForum 空板块成功 /
@@ -90,7 +90,7 @@ describe("createForum slug 正则校验（纯逻辑）", () => {
 /* 连库：权限拒绝 + 标志变更 + 板块 CRUD + listForumAdminData          */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("admin 论坛 actions 连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("admin 论坛 actions 连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const adminEmail = `task4-admin-${uniq}@test.local`;
   const userEmail = `task4-user-${uniq}@test.local`;

@@ -3,7 +3,7 @@
  *
  * 用法：
  *
- *   npx tsx --env-file=.env scripts/import-tutorials.ts
+ *   npx tsx scripts/import-tutorials.ts
  *
  * 语义要点：
  * - 幂等：slug = slugify(title)（确定性），冲突键 slug 的
@@ -27,6 +27,7 @@ import { pathToFileURL } from "node:url";
 import { eq } from "drizzle-orm";
 import matter from "gray-matter";
 import { db } from "@/lib/db";
+import { connectScriptDb } from "@/scripts/d1";
 import { tutorials } from "@/lib/db/schema";
 import { slugify } from "@/lib/slug";
 
@@ -89,12 +90,7 @@ function formatStats(stats: ImportStats): string {
   return `新增 ${stats.inserted} · 更新 ${stats.updated} · 跳过 ${stats.skipped} · 失败 ${stats.failed}`;
 }
 
-async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.error("请先配置 DATABASE_URL（如 npx tsx --env-file=.env scripts/import-tutorials.ts）");
-    process.exit(1);
-  }
-
+async function main(): Promise<number> {
   // 先落静态图，再入库正文（正文会引用 /tutorials/ 路径）
   const copied = await syncImages();
   console.log(`图片同步：public/tutorials/ 本次新复制 ${copied} 张（已存在跳过）`);
@@ -164,7 +160,17 @@ async function main() {
 
   console.log(`导入完成：${formatStats(stats)}`);
   const total = stats.inserted + stats.updated + stats.skipped + stats.failed;
-  process.exit(total > 0 && stats.failed === total ? 1 : 0);
+  return total > 0 && stats.failed === total ? 1 : 0;
+}
+
+/** 建立本地 D1 绑定并保证 dispose（tsx 无 Workers 运行时上下文） */
+async function run(): Promise<number> {
+  const d1 = await connectScriptDb();
+  try {
+    return await main();
+  } finally {
+    await d1.dispose();
+  }
 }
 
 // tsx 直跑时才执行 main
@@ -173,8 +179,12 @@ const invokedDirectly =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
-  main().catch((error) => {
-    console.error("执行失败：", error);
-    process.exit(1);
-  });
+  run()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      console.error("执行失败：", error);
+      process.exitCode = 1;
+    });
 }

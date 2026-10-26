@@ -18,11 +18,12 @@ import { auth } from "@/lib/auth";
 import { stripFrontmatter } from "@/lib/markdown";
 import { getSkillBySlug } from "@/lib/queries/skills";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Skill 详情页（Task 7）。
  *
- * - ISR 300s：由 getSkillBySlug 的 "use cache" + cacheLife 承载
- *   （cacheComponents 模式，项目无 export const revalidate）
+ * - getSkillBySlug 直接查 D1（每次请求实时）
  * - 正文经 MarkdownView 白名单消毒渲染（全站 XSS 防线）
  * - 浏览计数：after() 在响应结束后 fire-and-forget，不阻塞渲染
  */
@@ -33,8 +34,8 @@ type SkillDetailPageProps = {
 
 /**
  * 评论区服务端壳（Task 10）：auth() 与评论预取是请求个性化数据，
- * 必须留在 "use cache" 函数之外——挂在 Suspense 内的异步子组件里
- * （cacheComponents 下读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
+ * 必须留在页面主组件之外——挂在 Suspense 内的异步子组件里
+ * （读 cookies 的调用需在 Suspense 边界内，参照 site-header）。
  */
 async function SkillCommentArea({ skillId }: { skillId: string }) {
   let session = null;
@@ -87,7 +88,7 @@ export async function generateMetadata({
 }
 
 export default function SkillDetailPage(props: SkillDetailPageProps) {
-  // cacheComponents 下 await params 必须在 <Suspense> 内（Task 14 fix）
+  // await params 必须在 <Suspense> 内（Task 14 fix）
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-3xl flex-1" aria-busy="true" />}>
       <SkillDetailContent {...props} />
@@ -165,7 +166,7 @@ async function SkillDetailContent({ params }: SkillDetailPageProps) {
         <MarkdownView content={content} />
       </article>
 
-      {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进 ISR 缓存（T10） */}
+      {/* 评论区：个性化数据在 Suspense 子组件内取，不卷进页面主体渲染（T10） */}
       <Suspense fallback={<CommentAreaFallback />}>
         <SkillCommentArea skillId={skill.id} />
       </Suspense>

@@ -18,7 +18,8 @@ import {
  *
  * - 纯逻辑：parseSkillFile 的宽松解析分支（与上传语义不同：导入对
  *   缺 frontmatter 的文件是「跳过」而非报错）与 formatStats 统计输出
- * - 连库：skipIf 无 DATABASE_URL；用 fixtures 目录（3 个 md）驱动
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
+ *   用 fixtures 目录（3 个 md）驱动
  *   importSkillsFromDir，验证幂等（第二遍全 update、条数不变、
  *   内容覆盖）与确定性 slug（被 user 内容占用时落 <base>-builtin）
  */
@@ -102,7 +103,7 @@ const slugB = slugify("导入测试技能乙");
 /** fixtures 涉及的全部 slug 族（含 user 冲突兜底后缀） */
 const allSlugs = [slugA, slugB, `${slugA}-builtin`, `${slugB}-builtin`];
 
-describe.skipIf(!process.env.DATABASE_URL)("importSkillsFromDir 连库（fixtures 幂等）", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("importSkillsFromDir 连库（fixtures 幂等）", () => {
   beforeEach(async () => {
     // 每个用例从干净状态开始：清掉 fixtures slug 族的历史残留
     await db.delete(skills).where(inArray(skills.slug, allSlugs));

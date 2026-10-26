@@ -5,11 +5,13 @@ import { auth } from "@/lib/auth";
 import { listForums } from "@/lib/queries/forum";
 import { NewThreadForm } from "./new-thread-form";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 发帖页（Phase 2 Task 3，server 壳）。
  *
  * - middleware 已拦截 /forum/new（302 登录页），此处 auth() 守卫是
- *   页面层双保险（cacheComponents 下 auth() 读 cookies，必须位于
+ *   页面层双保险（auth() 读 cookies，必须位于
  *   <Suspense> 边界内的异步子组件，参照 app/upload/page.tsx）
  * - searchParams ?forum= 预选板块（同样在 Suspense 内 await）
  * - 板块列表来自 listForums()：无库 / 空列表时不 fallback 固定板块

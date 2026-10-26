@@ -13,8 +13,8 @@ import {
  * recentCount 限流计数（Task 4）
  *
  * - 窗口计算为纯逻辑：不依赖数据库，正常执行
- * - 连库计数：Neon 未就位（无 DATABASE_URL）时自动跳过，
- *   控制器统一 push 后设置 DATABASE_URL 即可执行
+ * - 连库计数（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`
+ *   即可执行
  */
 
 /* ---------------------------------------------------------------- */
@@ -71,7 +71,7 @@ describe("tokensExpiresFloor tokens 表窗口阈值（纯逻辑）", () => {
 /* 连库计数：插真实记录断言窗口内数量                                    */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("recentCount 连库计数", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("recentCount 连库计数", () => {
   it("comments：60s 窗口内 1 条、窗口外 1 条 → 计 1；放大窗口 → 计 2", async () => {
     const email = `ratelimit-test-${Date.now()}-${Math.random()
       .toString(36)

@@ -1,5 +1,5 @@
-import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { db, isDbAvailable } from "@/lib/db";
 import {
   comments,
   forums,
@@ -13,8 +13,8 @@ import {
 /**
  * 通知域库（Phase 3 Task 2）。
  *
- * 按决策放 lib/notify.ts（通知域内聚），不用 "use cache"——
- * 个人数据禁缓存（cacheComponents 铁律）。
+ * 按决策放 lib/notify.ts（通知域内聚），查询不缓存——
+ * 个人数据每次请求实时读取。
  *
  * - createNotification：通知是旁路逻辑，整体 try/catch 静默
  *   （通知失败不阻塞主流程，调用方无需再包 try/catch）。
@@ -63,7 +63,11 @@ export type NotificationItem = {
 /** 通知中心每页条数 */
 export const NOTIFICATIONS_PAGE_SIZE = 20;
 
-/** notifications.id / sourceId 为 uuid 列：非法格式不触库（防 PG invalid input syntax） */
+/**
+ * notifications.id / sourceId 为 uuid：非法格式不触库。
+ * D1（SQLite）下 id 是 text，非法 id 只会查不到、不会报错；
+ * 保留校验只为减少无谓查询（id 本来就是 UUID）。
+ */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -73,14 +77,14 @@ export async function createNotification(
   // 自通知跳过（自己回复 / 点赞自己的内容不打扰自己）
   if (input.actorId === input.userId) return;
   // 无数据库环境（纯静态构建）：静默返回
-  if (!process.env.DATABASE_URL) return;
+  if (!isDbAvailable()) return;
 
   try {
     if (input.type === "like") {
       // 防刷屏去重：未读同源合并（见文件头注释），命中即顶新 created_at 返回
       const merged = await db
         .update(notifications)
-        .set({ createdAt: sql`now()` })
+        .set({ createdAt: new Date() })
         .where(
           and(
             eq(notifications.userId, input.userId),
@@ -101,6 +105,9 @@ export async function createNotification(
       type: input.type,
       sourceType: input.sourceType,
       sourceId: input.sourceId,
+      // 显式毫秒时间：schema 默认值 unixepoch() 只有整秒精度，密集写入
+      // （连赞等）会同秒并列，通知中心的 created_at 倒序将不稳定。
+      createdAt: new Date(),
     });
   } catch {
     // 通知是旁路：写失败静默吞掉，不阻塞主流程
@@ -112,7 +119,7 @@ export async function listNotifications(
   page?: number,
   opts?: { since?: Date },
 ): Promise<{ items: NotificationItem[]; unread: number }> {
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return { items: [], unread: 0 };
   }
 
@@ -231,7 +238,7 @@ export async function listNotifications(
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {
-  if (!process.env.DATABASE_URL) return 0;
+  if (!isDbAvailable()) return 0;
 
   try {
     const [row] = await db
@@ -252,14 +259,15 @@ export async function getUnreadCount(userId: string): Promise<number> {
  * 已读再标 / 他人标读 / 不存在 → false（幂等语义）。
  */
 export async function markRead(id: string, userId: string): Promise<boolean> {
-  if (!process.env.DATABASE_URL || !UUID_RE.test(id)) return false;
+  if (!isDbAvailable() || !UUID_RE.test(id)) return false;
 
   const rows = await db
     .update(notifications)
-    .set({ readAt: sql`now()` })
+    .set({ readAt: new Date() })
     .where(
       and(
-        eq(notifications.id, id),
+        // D1 的 text 主键大小写敏感（PG 的 uuid 列不敏感）：统一小写再查
+        eq(notifications.id, id.toLowerCase()),
         eq(notifications.userId, userId),
         isNull(notifications.readAt),
       ),
@@ -270,11 +278,11 @@ export async function markRead(id: string, userId: string): Promise<boolean> {
 
 /** 全部已读：本人所有未读 → read_at=now，返回更新行数 */
 export async function markAllReadForUser(userId: string): Promise<number> {
-  if (!process.env.DATABASE_URL) return 0;
+  if (!isDbAvailable()) return 0;
 
   const rows = await db
     .update(notifications)
-    .set({ readAt: sql`now()` })
+    .set({ readAt: new Date() })
     .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)))
     .returning({ id: notifications.id });
   return rows.length;

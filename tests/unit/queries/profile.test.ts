@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { favorites, forums, skills, threads, users } from "@/lib/db/schema";
 import { getProfile, PROFILE_LIST_LIMIT } from "@/lib/queries/profile";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * 用户主页数据查询（Phase 3 Task 3）。
@@ -10,8 +11,8 @@ import { getProfile, PROFILE_LIST_LIMIT } from "@/lib/queries/profile";
  * Review Focus #5（收藏失效项过滤）：
  * - 收藏列表只回仍可见的目标——removed skill / hidden thread 的收藏行被过滤
  *
- * - 纯逻辑：无 DATABASE_URL 兜底（stub 后直接调用）
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 纯逻辑：无库（D1 绑定不可用）兜底返回 null
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   探针：主页主人 + 他人各 1，主人 2 帖（visible/hidden）+ 2 skill
  *   （published/removed），收藏 4 行（有效/失效 × skill/thread）
  *
@@ -31,13 +32,13 @@ describe("PROFILE_LIST_LIMIT 常量", () => {
   });
 });
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("getProfile 返回 null", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(getProfile(RANDOM_UUID)).resolves.toBeNull();
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -46,7 +47,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：三列表正确 + 收藏失效过滤（Focus #5）+ hidden/removed 排除     */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("getProfile 连库查询", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("getProfile 连库查询", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   let ownerId: string; // 主页主人

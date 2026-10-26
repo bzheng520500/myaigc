@@ -2,13 +2,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listTutorials } from "@/lib/queries/tutorials";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 教程列表页（Task 9）。
  *
  * - 单列卡片（max-w-3xl）：衬线标题 + summary 两行截断 +「阅读全文 →」，
  *   整卡可点（stretched Link，模式同 SkillCard）
- * - ISR 300s：由 listTutorials 的 "use cache" + cacheLife 承载
- *   （cacheComponents 模式，项目无 export const revalidate）
+ * - listTutorials 直接查 D1（每次请求实时）
  */
 
 export default async function TutorialsPage() {

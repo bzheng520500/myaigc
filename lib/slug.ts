@@ -1,6 +1,6 @@
 import { like, or, eq } from "drizzle-orm";
 import { pinyin } from "pinyin-pro";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { skills } from "@/lib/db/schema";
 
 /**
@@ -56,7 +56,7 @@ export async function ensureUniqueSlug(base: string): Promise<string> {
     return `skill-${randomSuffix()}`;
   }
   // 无数据库环境（本地 vitest / 纯静态构建）：无法查重，原样返回
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return base;
   }
 

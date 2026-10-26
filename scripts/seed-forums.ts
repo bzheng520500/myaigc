@@ -3,17 +3,18 @@
  *
  * 用法：
  *
- *   npx tsx --env-file=.env scripts/seed-forums.ts
+ *   npx tsx scripts/seed-forums.ts
  *
  * 语义要点：
  * - 幂等：onConflictDoUpdate by slug，重复执行只更新
  *   name / description / sortOrder，不重置 threadCount / replyCount
  *   （计数由发帖/回复 action 维护，seed 不得覆盖）
- * - 无 DATABASE_URL：打印提示并退出码 1（与 import-prompts.ts 同模式）
+ * - 无本地 D1：connectScriptDb 抛错并退出码 1（见 scripts/d1.ts）
  */
 import { sql } from "drizzle-orm";
 import { pathToFileURL } from "node:url";
 import { db } from "@/lib/db";
+import { connectScriptDb } from "@/scripts/d1";
 import { forums } from "@/lib/db/schema";
 
 type ForumSeed = {
@@ -57,14 +58,7 @@ const SEED_FORUMS: ForumSeed[] = [
   },
 ];
 
-async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.error(
-      "请先配置 DATABASE_URL（如 npx tsx --env-file=.env scripts/seed-forums.ts）",
-    );
-    process.exit(1);
-  }
-
+async function main(): Promise<number> {
   await db
     .insert(forums)
     .values(SEED_FORUMS)
@@ -79,6 +73,17 @@ async function main() {
     });
 
   console.log(`论坛板块 seed 完成：${SEED_FORUMS.length} 个板块已 upsert`);
+  return 0;
+}
+
+/** 建立本地 D1 绑定并保证 dispose（tsx 无 Workers 运行时上下文） */
+async function run(): Promise<number> {
+  const d1 = await connectScriptDb();
+  try {
+    return await main();
+  } finally {
+    await d1.dispose();
+  }
 }
 
 // tsx 直跑时才执行 main
@@ -87,8 +92,12 @@ const invokedDirectly =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
-  main().catch((error) => {
-    console.error("执行失败：", error);
-    process.exit(1);
-  });
+  run()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      console.error("执行失败：", error);
+      process.exitCode = 1;
+    });
 }

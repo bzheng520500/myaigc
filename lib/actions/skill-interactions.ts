@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, ne, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { skills } from "@/lib/db/schema";
 
 /**
@@ -14,7 +14,8 @@ import { skills } from "@/lib/db/schema";
 
 /** 浏览数 +1 */
 export async function incrementSkillView(slug: string): Promise<void> {
-  if (!process.env.DATABASE_URL) return;
+  // 无 D1 绑定（构建期 / 裸 Node 脚本）时静默跳过，避免 getDb 抛错
+  if (!isDbAvailable()) return;
   try {
     await db
       .update(skills)
@@ -27,7 +28,8 @@ export async function incrementSkillView(slug: string): Promise<void> {
 
 /** 复制数 +1 */
 export async function incrementSkillCopy(slug: string): Promise<void> {
-  if (!process.env.DATABASE_URL) return;
+  // 无 D1 绑定（构建期 / 裸 Node 脚本）时静默跳过，避免 getDb 抛错
+  if (!isDbAvailable()) return;
   try {
     await db
       .update(skills)

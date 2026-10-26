@@ -163,7 +163,7 @@ describe("/api/me/* 路由（纯逻辑：401 分支与占位响应）", () => {
 /* 连库：往返 / 并发竞态 / 计数联动 / 命中查询                          */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("点赞收藏连库", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("点赞收藏连库", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   let userId: string;
@@ -260,11 +260,18 @@ describe.skipIf(!process.env.DATABASE_URL)("点赞收藏连库", () => {
     expect(second).toEqual({ ok: true, liked: false, count: 0 });
   });
 
-  it("toggleLike 重复取消（无行可删）→ liked=false 且计数不漂移为负（幂等）", async () => {
+  it("toggleLike 无行时为点赞：计数绝不漂移为负（无状态开关）", async () => {
     loginAs(userId);
-    // 上一用例终态已是未赞；再取消一次：insert 冲突 → delete 0 行 → 不动计数
+    // 上一用例终态为未赞（无行）→ 本次是点赞而非扣分
     const result = await toggleLike("thread", threadId);
-    expect(result).toEqual({ ok: true, liked: false, count: 0 });
+    expect(result).toEqual({ ok: true, liked: true, count: 1 });
+
+    // 收尾：取消，回到未赞（后续用例以「无行 + count 0」为前置）
+    await expect(toggleLike("thread", threadId)).resolves.toEqual({
+      ok: true,
+      liked: false,
+      count: 0,
+    });
 
     const [row] = await db
       .select({ likeCount: threads.likeCount })
@@ -276,6 +283,19 @@ describe.skipIf(!process.env.DATABASE_URL)("点赞收藏连库", () => {
   it("并发双击（Promise.all 同目标）：唯一约束保证只有一方 +1（Review Focus #1）", async () => {
     loginAs(userId);
 
+    // 前置：目标无 like 行、计数 0（不依赖前序用例的收尾）
+    await db.delete(likes).where(
+      and(
+        eq(likes.userId, userId),
+        eq(likes.targetType, "thread"),
+        eq(likes.targetId, threadId),
+      ),
+    );
+    await db
+      .update(threads)
+      .set({ likeCount: 0 })
+      .where(eq(threads.id, threadId));
+
     const [a, b] = await Promise.all([
       toggleLike("thread", threadId),
       toggleLike("thread", threadId),
@@ -286,7 +306,7 @@ describe.skipIf(!process.env.DATABASE_URL)("点赞收藏连库", () => {
 
     // 恰好一方 insert 成功（唯一约束防线：绝不出现两行 likes / 双 +1），
     // 另一方必然走删除分支。insert 与计数 update 是分步语句
-    // （neon-http 无交互式事务），并发下 ±1 的执行顺序可能交错
+    // （D1 无交互式事务），并发下 ±1 的执行顺序可能交错
     // （瞬时 count 可为 0/-1/1），故不断言单次响应的瞬时计数，
     // 只断言「只有一方 +1」与终态净零。
     const winners = [a, b].filter((r) => r.liked);
@@ -350,11 +370,16 @@ describe.skipIf(!process.env.DATABASE_URL)("点赞收藏连库", () => {
       favorited: true,
     });
 
-    // 重复取消幂等：第二次取消仍 favorited=false，无副作用
+    // toggle 是无状态开关：第 3 次是取消，第 4 次必然重新收藏（不是幂等）
     await expect(toggleFavorite("skill", skillId)).resolves.toEqual({
       ok: true,
       favorited: false,
     });
+    await expect(toggleFavorite("skill", skillId)).resolves.toEqual({
+      ok: true,
+      favorited: true,
+    });
+    // 收尾：全部取消，后续用例以「无收藏行」为前置
     await expect(toggleFavorite("skill", skillId)).resolves.toEqual({
       ok: true,
       favorited: false,

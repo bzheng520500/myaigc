@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { eq } from "drizzle-orm";
 import { db } from "../../lib/db";
 import { forums, replies, threads } from "../../lib/db/schema";
+import { ensureLocalDb } from "./helpers/d1";
 import { loginViaLink } from "./helpers/login";
 
 /**
@@ -9,9 +10,10 @@ import { loginViaLink } from "./helpers/login";
  * middleware 保护 /forum/new → 登录 → 发帖页选板块/标题/正文 → 帖子页断言
  * → 回复两次（30s 限流文案展示 + 等待窗口后重试成功）→ 板块页见帖。
  *
- * 运行前置：DATABASE_URL（Neon 连接串）、AUTH_DEV_MODE=1（魔法链接
- * 落盘登录，见 tests/e2e/helpers/login.ts）；未设置 DATABASE_URL 时
- * 整个文件 skip（与 phase1.spec.ts 同模式）。
+ * 运行前置：本地 D1（`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`）、
+ * AUTH_DEV_MODE=1（魔法链接落盘登录，见 tests/e2e/helpers/login.ts）；
+ * 未设置 D1_LOCAL_TEST 时整个文件 skip（与 phase1.spec.ts 同模式）。
+ * 真实连库在 Phase E 接入。
  *
  * 数据策略：时间戳唯一化；探针板块直插库（beforeAll），发帖用户经
  * 魔法链接登录创建（新邮箱 = 新用户，天然绕开登录 60s 频控与发帖
@@ -19,8 +21,8 @@ import { loginViaLink } from "./helpers/login";
  * 清理，魔法链接登录用户保留无妨（brief 授权）。
  */
 
-// 无库守卫：无 DATABASE_URL 的环境整个文件 skip
-test.skip(!process.env.DATABASE_URL, "需要 DATABASE_URL");
+// 无库守卫：未启用本地 D1 连库测试的环境整个文件 skip
+test.skip(process.env.D1_LOCAL_TEST !== "1", "需要 D1_LOCAL_TEST=1（本地 D1）");
 
 const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const forumSlug = `p2e2-post-${uniq}`;
@@ -29,6 +31,9 @@ const forumName = `E2E发帖板块-${uniq}`;
 let forumId: string;
 /** 主链路发帖成功后回填（afterAll 清理用；失败时为空跳过 thread 清理） */
 let threadId: string | null = null;
+
+// 直插库前注入本地 D1 绑定：必须是本文件第一个 beforeAll（钩子按注册序执行）
+test.beforeAll(ensureLocalDb);
 
 test.beforeAll(async () => {
   const [forum] = await db

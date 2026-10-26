@@ -10,7 +10,7 @@ import { updateProfile } from "@/lib/actions/profile";
  *
  * - 纯逻辑（无库可跑）：未登录 / name 超长 / image 非 URL，
  *   分支顺序保证这些错误在任何数据库调用之前返回
- * - 连库：Neon 未就位（无 DATABASE_URL）时自动跳过；
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`；
  *   合法更新生效（trim / image 落库 / notifyEmail 翻转 / 空串清空头像）
  *
  * mock（与 upload.test.ts / interactions.test.ts 同模式）：@/lib/auth 注入登录态。
@@ -90,7 +90,7 @@ describe("updateProfile 前置分支（纯逻辑）", () => {
 /* 连库：合法更新生效                                                   */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)("updateProfile 连库更新", () => {
+describe.skipIf(!process.env.D1_LOCAL_TEST)("updateProfile 连库更新", () => {
   const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   let userId: string;

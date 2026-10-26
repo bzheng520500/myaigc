@@ -1,18 +1,15 @@
 import { and, asc, count, desc, eq, ne } from "drizzle-orm";
-import { cacheLife } from "next/cache";
-import { REVALIDATE_FORUM } from "@/lib/constants";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { forums, replies, threads, users, type Forum, type Thread } from "@/lib/db/schema";
 
 /**
  * 论坛查询（Phase 2 Task 1）。
  *
- * 缓存策略与 lib/queries/skills.ts 一致（cacheComponents 已开启）：
- * ISR 语义由函数级 "use cache" + cacheLife 承载——revalidate = 60s
- * （论坛互动密集，比内容页 300s 更短）；sort / page 筛选改变入参，
- * "use cache" 按参数分别缓存。
+ * 缓存：无。Cloudflare Workers 不支持 cacheComponents/PPR（页面会
+ * hang），页面统一 force-dynamic，本文件查询每次请求实时读 D1。
  *
- * 全部查询函数在无 DATABASE_URL 时短路返回空数据（纯静态构建不 crash）。
+ * 全部查询函数在无 D1 绑定（isDbAvailable() 为 false）时短路返回空数据
+ * （纯静态构建不 crash）。
  */
 
 /** 板块页每页帖数（列表页与分页组件共用） */
@@ -53,17 +50,18 @@ export type ReplyListItem = {
   likeCount: number;
 };
 
-/** threads.id 为 uuid 列：非法格式直接视为不存在，避免 PG 抛 invalid input syntax */
+/**
+ * threads.id 为 uuid：非法格式直接视为不存在。
+ * D1（SQLite）下 id 是 text，非法 id 只会查不到；保留校验只为省一次查询。
+ */
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 板块列表：sort_order 升序 */
 export async function listForums(): Promise<ForumRow[]> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空列表，页面走空态
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return [];
   }
 
@@ -91,11 +89,9 @@ export async function listThreads(
   forumSlug: string,
   opts: ListThreadsOptions,
 ): Promise<{ items: ThreadListItem[]; total: number }> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空数据
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return { items: [], total: 0 };
   }
 
@@ -140,20 +136,21 @@ export async function listThreads(
 export async function getThreadById(
   id: string,
 ): Promise<{ thread: Thread; authorName: string | null; forumSlug: string } | null> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：视为不存在
-  if (!process.env.DATABASE_URL || !UUID_RE.test(id)) {
+  if (!isDbAvailable() || !UUID_RE.test(id)) {
     return null;
   }
+
+  // D1 的 text 主键大小写敏感（PG 的 uuid 列不敏感）：统一小写再查，保持等价
+  const threadKey = id.toLowerCase();
 
   const [row] = await db
     .select({ thread: threads, authorName: users.name, forumSlug: forums.slug })
     .from(threads)
     .innerJoin(users, eq(threads.authorId, users.id))
     .innerJoin(forums, eq(threads.forumId, forums.id))
-    .where(and(eq(threads.id, id), ne(threads.status, "hidden")))
+    .where(and(eq(threads.id, threadKey), ne(threads.status, "hidden")))
     .limit(1);
 
   if (!row) return null;
@@ -170,11 +167,9 @@ export type LatestThreadItem = ThreadListItem & {
 export async function listLatestThreads(
   limit: number,
 ): Promise<LatestThreadItem[]> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空列表
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return [];
   }
 
@@ -206,11 +201,9 @@ export async function listLatestThreads(
 
 /** 板块单查（板块页 notFound 判定用，Task 2 追加） */
 export async function getForumBySlug(slug: string): Promise<ForumRow | null> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：视为不存在
-  if (!process.env.DATABASE_URL) {
+  if (!isDbAvailable()) {
     return null;
   }
 
@@ -233,13 +226,14 @@ export async function getForumBySlug(slug: string): Promise<ForumRow | null> {
 
 /** 帖子楼层列表：floor_number 升序，只返回 visible */
 export async function listReplies(threadId: string): Promise<ReplyListItem[]> {
-  "use cache";
-  cacheLife({ stale: 60, revalidate: REVALIDATE_FORUM, expire: 3600 });
 
   // 无数据库环境（如纯静态构建）：返回空列表
-  if (!process.env.DATABASE_URL || !UUID_RE.test(threadId)) {
+  if (!isDbAvailable() || !UUID_RE.test(threadId)) {
     return [];
   }
+
+  // D1 的 text 主键大小写敏感（PG 的 uuid 列不敏感）：统一小写再查，保持等价
+  const threadKey = threadId.toLowerCase();
 
   return db
     .select({
@@ -254,7 +248,7 @@ export async function listReplies(threadId: string): Promise<ReplyListItem[]> {
     })
     .from(replies)
     .innerJoin(users, eq(replies.authorId, users.id))
-    .where(and(eq(replies.threadId, threadId), eq(replies.status, "visible")))
+    .where(and(eq(replies.threadId, threadKey), eq(replies.status, "visible")))
     .orderBy(asc(replies.floorNumber))
     .limit(REPLIES_LIMIT);
 }

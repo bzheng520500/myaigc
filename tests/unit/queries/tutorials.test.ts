@@ -3,13 +3,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { tutorials } from "@/lib/db/schema";
 import { getTutorialBySlug, listTutorials } from "@/lib/queries/tutorials";
+import { simulateNoDatabase } from "@/tests/helpers/db";
 
 /**
  * Tutorial 查询（Task 9），模式与 tests/unit/queries/skills.test.ts 一致：
  *
- * - 纯逻辑：无 DATABASE_URL 兜底（stub 环境变量后直接调用）
- * - 连库：Neon 未就位时 skipIf 自动跳过，插入带 uniq 探针的
- *   2 篇教程断言 sortOrder asc 排序与 slug 命中 / null
+ * - 纯逻辑：无库（D1 绑定不可用）兜底返回空
+ * - 连库（本地 D1）：`npm run db:migrate:local` 后设 `D1_LOCAL_TEST=1`，
+ *   插入带 uniq 探针的 2 篇教程断言 sortOrder asc 排序与 slug 命中 / null
  *
  * cacheLife 在 Next cache scope 之外会 throw，mock 成 no-op。
  */
@@ -18,25 +19,25 @@ vi.mock("next/cache", () => ({
 }));
 
 /* ---------------------------------------------------------------- */
-/* 纯逻辑：无 DATABASE_URL 兜底                                        */
+/* 纯逻辑：无库（D1 绑定不可用）兜底                              */
 /* ---------------------------------------------------------------- */
 
-describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
+describe("无库兜底（D1 绑定不可用，内部短路，不发起查询）", () => {
   it("listTutorials 返回空数组", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(listTutorials()).resolves.toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 
   it("getTutorialBySlug 返回 null", async () => {
-    vi.stubEnv("DATABASE_URL", "");
+    const restore = simulateNoDatabase();
     try {
       await expect(getTutorialBySlug("any-slug")).resolves.toBeNull();
     } finally {
-      vi.unstubAllEnvs();
+      restore();
     }
   });
 });
@@ -45,7 +46,7 @@ describe("无 DATABASE_URL 兜底（内部短路，不发起查询）", () => {
 /* 连库：插入 2 篇（sortOrder 2 / 1，探针圈定本组数据）                   */
 /* ---------------------------------------------------------------- */
 
-describe.skipIf(!process.env.DATABASE_URL)(
+describe.skipIf(!process.env.D1_LOCAL_TEST)(
   "listTutorials / getTutorialBySlug 连库查询",
   () => {
     const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
