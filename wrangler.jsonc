@@ -7,7 +7,7 @@
   // 非敏感的运行时变量（secrets 用 `wrangler secret put`，勿放这里）
   // NEXT_PUBLIC_BASE_URL：每日摘要邮件里链接的基地址（worker.ts / cron route 读取）
   "vars": {
-    "NEXT_PUBLIC_BASE_URL": "https://ai-film-workshop.il39cgy5.workers.dev"
+    "NEXT_PUBLIC_BASE_URL": "https://aigc.chatgpta.ccwu.cc"
   },
   "assets": {
     "directory": ".open-next/assets",
