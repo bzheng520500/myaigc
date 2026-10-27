@@ -1,5 +1,6 @@
 import { AccessDenied, AuthError } from "@auth/core/errors";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { and, eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import type { Provider } from "next-auth/providers";
@@ -159,6 +160,33 @@ function loginEmailHtml(url: string): string {
 }
 
 /**
+ * 发信失败时释放本次占用的邮箱频控额度。
+ *
+ * Auth.js 在 signIn(email) 里用 `Promise.all([sendVerificationRequest,
+ * createVerificationToken])` 并行执行，因此 sendVerificationRequest 抛错时
+ * token 行已经（或即将）落库。那行会被 recentCount("tokens", email, 60)
+ * 计入，导致用户在 60 秒内重试都被判「发送过于频繁」——而每次失败又会写入
+ * 新行，等于无限锁死。
+ *
+ * 这里按 (identifier, expires) 精确删除本次请求对应的行：expires 由 Auth.js
+ * 在调用前生成（now + maxAge），与同邮箱的历史 token 不会撞值，不会误删。
+ * 删除失败静默（最坏情况退化为原来的 60 秒等待，不影响主流程）。
+ */
+async function releaseRateLimitSlot(
+  identifier: string,
+  expires: Date,
+): Promise<void> {
+  await getDb()
+    .delete(verificationTokens)
+    .where(
+      and(
+        eq(verificationTokens.identifier, identifier),
+        eq(verificationTokens.expires, expires),
+      ),
+    );
+}
+
+/**
  * 手写 Email provider 工厂（Task 14 fix：next-auth/providers/email 是
  * @auth/core 的 deprecated 别名，内部静态 import nodemailer 导致构建
  * 失败。手写对象不引入任何 provider 包装函数，产物与 Email() 等价：
@@ -185,7 +213,7 @@ export function emailProvider(): Provider {
   name: "Email",
   from: process.env.AUTH_EMAIL_FROM,
   maxAge: TOKENS_MAX_AGE_SEC, // 15 分钟，与 lib/ratelimit.ts 的窗口反推保持一致
-  async sendVerificationRequest({ identifier, url, request }) {
+  async sendVerificationRequest({ identifier, url, request, expires }) {
     const recent = await recentCount("tokens", identifier, RESEND_WINDOW_SEC);
     if (recent >= 1) {
       throw new AccessDenied(
@@ -247,6 +275,12 @@ export function emailProvider(): Provider {
         "[auth] 登录邮件发送失败：",
         error instanceof Error ? error.message : error,
       );
+      // 关键：Auth.js 的 createVerificationToken 与本回调是 Promise.all 并行
+      // 执行的，发信失败时 token 行已经写库。若不清理，这行会占满 60 秒频控
+      // 窗口，用户重试时收到「发送过于频繁」——等再久也没用，因为每次失败
+      // 尝试都会重新写入。这里删掉本次刚插入的行（按 identifier + 本次
+      // 请求的 expires 精确匹配，避免误删历史记录）。
+      await releaseRateLimitSlot(identifier, expires).catch(() => {});
       // SMTP / Resend 的失败统一映射为 AuthError 子类：login 页按此
       // 显示中文文案；普通 Error 会被 next-auth 吞掉转默认错误页。
       throw new EmailSignInError(
