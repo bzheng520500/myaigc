@@ -38,11 +38,11 @@ import { TOKENS_MAX_AGE_SEC } from "@/lib/ratelimit";
  */
 
 /**
- * emailProvider 标注为 Provider 联合类型（OAuth 分支无此方法），
- * 测试按 email 分支的实际签名窄化后调用
+ * emailProvider 是工厂（from 需请求期求值）；测试按 email 分支的
+ * 实际签名窄化后调用
  */
 const sendVerificationRequest = (
-  emailProvider as unknown as {
+  emailProvider() as unknown as {
     sendVerificationRequest: (p: {
       identifier: string;
       url: string;

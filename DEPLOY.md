@@ -1,6 +1,6 @@
 # AI影视工坊 部署手册
 
-从零到生产的完整部署流程。技术栈：Next.js 16 + Drizzle ORM + Cloudflare D1（SQLite）+ Resend（邮件）+ Cloudflare Workers（托管与 Cron）。
+从零到生产的完整部署流程。技术栈：Next.js 16 + Drizzle ORM + Cloudflare D1（SQLite）+ SMTP 邮件（163 企业/个人授权码，Resend 备用）+ Cloudflare Workers（托管与 Cron）。
 
 > 所有命令默认在仓库根目录 `ai-film-workshop/` 下执行。
 >
@@ -39,9 +39,13 @@ npx tsx scripts/import-tutorials.ts  # 运镜教程
 | --- | --- |
 | `AUTH_SECRET` | Auth.js 加密密钥，`openssl rand -base64 32` 生成 |
 | `AUTH_DEV_MODE` | 本地开发填 `1`（验证链接打印到 console 并落盘，不真发邮件）；**生产禁止设置** |
-| `RESEND_API_KEY` | Resend API 密钥（本地 DEV 模式不发送，可留空） |
-| `AUTH_EMAIL_FROM` | 发件人地址，如 `AI影视工坊 <noreply@your-domain.com>` |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器（如 `smtp.163.com` / `465`，隐式 TLS） |
+| `SMTP_USER` / `SMTP_PASS` | 发信邮箱与授权码（163 在「POP3/SMTP/IMAP」设置里开启服务并生成授权码） |
+| `AUTH_EMAIL_FROM` | 发件人，如 `AI影视工坊 <aigc202610@163.com>`；**163 要求 MAIL FROM 与认证账号一致** |
+| `RESEND_API_KEY` | 备用通道；`SMTP_*` 三项齐全时才会走 SMTP，否则回落 Resend（可留空） |
 | `CRON_SECRET` | 本地测 cron 用（生产用 `wrangler secret put` 配置） |
+
+>SMTP 优先：`lib/mailer/index.ts` 先探测 `SMTP_HOST/SMTP_USER/SMTP_PASS`，齐全走 SMTP（Workers 上经 `cloudflare:sockets` 的 465 隐式 TLS，本地 Node 经 `node:tls`）；缺任一项回落 Resend（`RESEND_API_KEY`）；两者都未配置时登录会明确报「邮件服务未配置」。
 
 ```bash
 npm run dev   # http://localhost:3000，next dev 会注入 wrangler.jsonc 的 D1/KV 绑定
@@ -93,7 +97,10 @@ secrets 一律用 CLI 上传（**绝不写入 `wrangler.jsonc` 或代码库**）
 
 ```bash
 printf '%s' "<AUTH_SECRET 值>"    | npx wrangler secret put AUTH_SECRET
-printf '%s' "<RESEND_API_KEY>"    | npx wrangler secret put RESEND_API_KEY
+printf '%s' "smtp.163.com"       | npx wrangler secret put SMTP_HOST
+printf '%s' "465"                | npx wrangler secret put SMTP_PORT
+printf '%s' "你的发信邮箱"         | npx wrangler secret put SMTP_USER
+printf '%s' "<SMTP授权码>"        | npx wrangler secret put SMTP_PASS
 printf '%s' "<发件人地址>"         | npx wrangler secret put AUTH_EMAIL_FROM
 openssl rand -hex 32              | npx wrangler secret put CRON_SECRET
 ```
@@ -101,9 +108,12 @@ openssl rand -hex 32              | npx wrangler secret put CRON_SECRET
 | Secret | 说明 |
 | --- | --- |
 | `AUTH_SECRET` | Auth.js 会话签名密钥（与本地一致即可） |
-| `RESEND_API_KEY` | 魔法链接邮件发送 |
-| `AUTH_EMAIL_FROM` | 发件人，如 `AI影视工坊 <noreply@your-domain.com>` |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器地址与端口（`smtp.163.com` / `465`） |
+| `SMTP_USER` / `SMTP_PASS` | 发信邮箱账号与授权码（不是邮箱登录密码） |
+| `AUTH_EMAIL_FROM` | 发件人显示名+地址，如 `AI影视工坊 <aigc202610@163.com>` |
 | `CRON_SECRET` | cron 端点鉴权；**未配置时 `/api/cron/digest` 直接 500（fail-closed）** |
+
+> SMTP 与 Resend 是互为备用：`SMTP_HOST/SMTP_USER/SMTP_PASS` 任一缺失就回落 Resend（`RESEND_API_KEY`），两者都没有时登录页报「邮件服务未配置」。`SMTP_*` 三项齐全时无需配置 Resend。
 
 > **`AUTH_DEV_MODE` 生产一律不设置**：设置后魔法链接不真发邮件、直接落日志，等于放开登录。本地 `.env` 里的该变量不会被 `wrangler deploy` 带上线。
 
@@ -126,28 +136,31 @@ npx wrangler d1 execute ai-film-workshop --remote \
 
 （本地开发等价命令：`npx tsx scripts/promote-admin.ts <邮箱>`）
 
-## 6. Resend 域名与 DNS
+## 6. SMTP 发件配置（163 示例）
 
-1. [Resend](https://resend.com) → **Domains** → Add Domain，填你的自定义域名。
-2. 按提示到域名 DNS 服务商添加记录（通常 1 条 SPF TXT + 1 条 DKIM CNAME）。
-3. 等待验证通过（Verified）。未验证前只能用 `onboarding@resend.dev` 测试发件。
-4. `AUTH_EMAIL_FROM` 使用该域名下的地址。
+1. 登录 163 邮箱网页版 → **设置** → **POP3/SMTP/IMAP**，开启 `IMAP/SMTP 服务`并按提示获取**授权码**（不是邮箱登录密码）。
+2. `SMTP_HOST=smtp.163.com`，`SMTP_PORT=465`（隐式 TLS）。
+3. `SMTP_USER` 填邮箱地址，`SMTP_PASS` 填授权码。
+4. `AUTH_EMAIL_FROM` 的地址必须与 `SMTP_USER` 一致——163 校验 MAIL FROM 与认证账号一致，不一致直接拒信。
+5. **163 特有**：同账号「自发自收」可能被反垃圾延迟投递或进其他文件夹；验证时可用第二个邮箱做收件测试。另外 163 对同一邮箱有 ~60s 的重发冷却，连续触发登录会收到 `AccessDenied`，属预期频控。
+
+（Resend 备用通道）若要切换回 Resend：把 `SMTP_HOST/SMTP_USER/SMTP_PASS` 任一项从 secrets 删除后 `wrangler deploy`，配置 `RESEND_API_KEY` 并参考其 Domains 页面添加自定义域名 SPF/DKIM 记录后 Verified。
 
 ## 7. 生产验收清单（本手册对应环境已逐项验证）
 
 - [x] 首页 `/`：站点统计（Skill/提示词/教程数）与精选列表来自远程 D1
 - [x] `/skills`、`/prompts`、`/tutorials`、`/forum` 四个内容页 200 且内容正确
 - [x] Skill 详情页正文 markdown 渲染正常
-- [x] `/login` 魔法链接页 200，提交后收到 Resend 邮件
+- [x] `/login` 魔法链接页 200，提交后收到 SMTP 邮件
 - [x] 未登录访问受保护页面（`/upload`、`/forum/new`、`/notifications`、`/profile`）307 跳登录
 - [x] `/api/cron/digest`：无密钥 401，带 `CRON_SECRET` 返回统计 JSON
-- [ ] 注册/登录全流程（收到邮件 → 点击链接 → 回到原页）——需要真实邮箱验证
+- [x] 登录全流程：邮件magic链接 → 点击 → session 建立、身份为登录邮箱（线上已验证 aigc202610@163.com）
 - [ ] 发帖 / 回复 / 点赞 / 收藏 / 通知——需要两个账号交互验证
 
 ## 常见问题
 
 - **部署时进程无声退出（exit 127/1）**：项目路径含中文导致，`npm run deploy` 已自动切换 ASCII 工作区；若手动跑 OpenNext CLI 请设 `CF_BUILD_WORKSPACE`。
-- **收不到登录邮件**：检查 Resend 域名是否 Verified、`AUTH_EMAIL_FROM` / `RESEND_API_KEY` 是否已 put、生产是否误设了 `AUTH_DEV_MODE=1`。
+- **收不到登录邮件**：① 检查 `SMTP_HOST/SMTP_USER/SMTP_PASS` 三项是否都已 put（缺任一即回落 Resend）；② 163 自发自收有反垃圾延迟/可能进其他文件夹；③ 连续触发登录会因 60s 频控返回 `AccessDenied`（等 1 分钟）；④ 生产误设 `AUTH_DEV_MODE=1` 会跳过真实发信，须确保未设置。
 - **cron 返回 500**：`CRON_SECRET` 未上传（fail-closed 设计），`wrangler secret put CRON_SECRET` 后自动生效。
 - **cron 返回 401**：请求未带 `Authorization: Bearer <CRON_SECRET>` 或值不匹配。
 - **本地测试连库**：`D1_LOCAL_TEST=1 npx vitest run`（自动经 `getPlatformProxy()` 连本地 D1，文件串行执行）。

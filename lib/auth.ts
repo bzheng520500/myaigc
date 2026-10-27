@@ -11,6 +11,7 @@ import {
   verificationTokens,
 } from "@/lib/db/schema";
 import { recentCount, TOKENS_MAX_AGE_SEC } from "@/lib/ratelimit";
+import { sendEmail } from "@/lib/mailer";
 
 /**
  * Auth.js v5 魔法链接登录（Task 4）
@@ -114,10 +115,16 @@ async function markIpSent(ip: string): Promise<void> {
 class EmailSignInError extends AuthError {}
 
 /**
- * 手写 Email provider 对象（Task 14 fix：next-auth/providers/email 是
+ * 手写 Email provider 工厂（Task 14 fix：next-auth/providers/email 是
  * @auth/core 的 deprecated 别名，内部静态 import nodemailer 导致构建
  * 失败。手写对象不引入任何 provider 包装函数，产物与 Email() 等价：
  * id 仍为 "email"，login 页 signIn("email", …) 行为语义不变）。
+ *
+ * 必须是**工厂**而非顶层对象：`from`（AUTH_EMAIL_FROM）依赖
+ * @opennextjs/cloudflare 的 populateProcessEnv 注入的 secrets，而本模块
+ * 顶层在 Worker 启动期求值（早于注入）。顶层求值曾让 from 恒为
+ * undefined，Auth.js 断言 email provider 缺 from 直接 error=Configuration。
+ * authConfig() 在请求期调用本工厂，届时 env 已就绪（与 `secret:` 同理）。
  *
  * sendVerificationRequest（原顶层函数整体搬入）：
  *
@@ -127,7 +134,8 @@ class EmailSignInError extends AuthError {}
  *
  * 导出（终审 F1）：测试直接调 sendVerificationRequest 断言 IP 限流。
  */
-export const emailProvider: Provider = {
+export function emailProvider(): Provider {
+  return {
   id: "email",
   type: "email",
   name: "Email",
@@ -170,22 +178,8 @@ export const emailProvider: Provider = {
       return;
     }
 
-    const from = process.env.AUTH_EMAIL_FROM;
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!from || !apiKey) {
-      throw new EmailSignInError(
-        "邮件发送失败：RESEND_API_KEY / AUTH_EMAIL_FROM 未配置",
-      );
-    }
-
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
+    try {
+      await sendEmail({
         to: identifier,
         subject: "登录 AI影视工坊",
         text: [
@@ -197,27 +191,26 @@ export const emailProvider: Provider = {
           "",
           "如果这不是你本人的操作，请忽略本邮件。",
         ].join("\n"),
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) {
-      let detail = `HTTP ${response.status}`;
-      try {
-        const body = (await response.json()) as {
-          name?: string;
-          message?: string;
-        };
-        detail = `${body.name ?? "ResendError"} ${body.message ?? ""}`.trim();
-      } catch {
-        // 非 JSON 响应（网关错误页等）：保留 HTTP 状态码
-      }
-      throw new EmailSignInError(`邮件发送失败：${detail}`);
+      });
+    } catch (error) {
+      // 诊断：Auth.js 会把异常转成 error=Verification 重定向，原始失败
+      // 原因只有日志里能看到（observability / wrangler tail）
+      console.error(
+        "[auth] 登录邮件发送失败：",
+        error instanceof Error ? error.message : error,
+      );
+      // SMTP / Resend 的失败统一映射为 AuthError 子类：login 页按此
+      // 显示中文文案；普通 Error 会被 next-auth 吞掉转默认错误页。
+      throw new EmailSignInError(
+        `邮件发送失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
     }
 
     // 发信成功：写入 IP 计数标记（发信/打印链接两个成功路径末尾各调一次）
     await markIpSent(ip);
   },
-};
+  };
+}
 
 /**
  * Auth.js 配置工厂（惰性，Auth.js v5 每次请求才调用求值）。
@@ -235,7 +228,7 @@ function authConfig(): NextAuthConfig {
       sessionsTable: sessions,
       verificationTokensTable: verificationTokens,
     }),
-    providers: [emailProvider],
+    providers: [emailProvider()],
     session: { strategy: "database" },
     callbacks: {
       /**

@@ -11,12 +11,12 @@ import {
 import { GET as digestRoute } from "@/app/api/cron/digest/route";
 import { db, setDbForTesting } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
+import { sendViaResend } from "@/lib/mailer";
 import {
   buildDigest,
   digestSince,
   DIGEST_WINDOW_MS,
   sendDailyDigests,
-  sendDigestEmail,
 } from "@/lib/digest";
 import type { DigestNotification } from "@/lib/digest";
 import { renderDailyDigestHtml } from "@/lib/emails/daily-digest";
@@ -123,16 +123,17 @@ describe("renderDailyDigestHtml 纯函数", () => {
 });
 
 /* ---------------------------------------------------------------- */
-/* 纯逻辑：sendDigestEmail 直接调 Resend REST（无 SDK，mock fetch）   */
+/* 纯逻辑：mailer 的 Resend 备用通道（mock fetch 断言请求契约）        */
 /* ---------------------------------------------------------------- */
 
-describe("sendDigestEmail Resend REST 调用（mock fetch）", () => {
-  const payload = {
-    from: "noreply@example.com",
+describe("sendViaResend REST 调用（mock fetch）", () => {
+  const msg = {
     to: "user@example.com",
     subject: "你在 AI影视工坊 有 2 条新通知",
+    text: "你有 2 条未读通知",
     html: "<p>你好</p>",
   };
+  const opts = { apiKey: "re_test_key", from: "noreply@example.com" };
 
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -145,7 +146,7 @@ describe("sendDigestEmail Resend REST 调用（mock fetch）", () => {
       .mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(sendDigestEmail("re_test_key", payload)).resolves.toBe(true);
+    await expect(sendViaResend(msg, opts)).resolves.toBeUndefined();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -155,23 +156,21 @@ describe("sendDigestEmail Resend REST 调用（mock fetch）", () => {
       Authorization: "Bearer re_test_key",
       "Content-Type": "application/json",
     });
-    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(JSON.parse(String(init.body))).toEqual({ from: opts.from, ...msg });
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("非 2xx（401）→ 返回 false，console.error 记录状态与响应体", async () => {
+  it("非 2xx（401）→ 抛错（消息含状态码与响应体）", async () => {
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
         .mockResolvedValue(new Response("invalid api key", { status: 401 })),
     );
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(sendDigestEmail("bad_key", payload)).resolves.toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("401"));
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("invalid api key"),
+    // 一次调用同时断言状态码与响应体（mock Response body 只能读一次）
+    await expect(sendViaResend(msg, opts)).rejects.toThrow(
+      /Resend HTTP 401：invalid api key/,
     );
   });
 });
@@ -247,10 +246,13 @@ describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触�
     setDbForTesting(null);
   });
 
-  it("非 DEV 且缺 RESEND_API_KEY → failed:-1 哨兵 + console.error 提示", async () => {
+  it("非 DEV 且 SMTP / RESEND 均未配置 → failed:-1 哨兵 + console.error 提示", async () => {
     // 仅需 isDbAvailable() 为 true：配置检查早于任何 db 查询，注入空对象即可
     setDbForTesting({});
     vi.stubEnv("AUTH_DEV_MODE", undefined);
+    vi.stubEnv("SMTP_HOST", undefined);
+    vi.stubEnv("SMTP_USER", undefined);
+    vi.stubEnv("SMTP_PASS", undefined);
     vi.stubEnv("RESEND_API_KEY", undefined);
     vi.stubEnv("AUTH_EMAIL_FROM", "noreply@example.com");
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -260,21 +262,9 @@ describe("sendDailyDigests 配置缺失快速失败（纯逻辑，检查在触�
       skipped: 0,
       failed: -1,
     });
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("RESEND_API_KEY"));
-  });
-
-  it("非 DEV 且缺 AUTH_EMAIL_FROM → 同样快速失败 failed:-1", async () => {
-    setDbForTesting({});
-    vi.stubEnv("AUTH_DEV_MODE", undefined);
-    vi.stubEnv("RESEND_API_KEY", "re_xxx");
-    vi.stubEnv("AUTH_EMAIL_FROM", undefined);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await expect(sendDailyDigests(BASE_URL)).resolves.toEqual({
-      sent: 0,
-      skipped: 0,
-      failed: -1,
-    });
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SMTP / RESEND"),
+    );
   });
 });
 
