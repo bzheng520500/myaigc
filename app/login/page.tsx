@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/auth";
+import { signIn, auth } from "@/lib/auth";
 import { sanitizeReturnUrl } from "@/lib/return-url";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
  * 登录页：邮箱魔法链接（Task 4）
  *
  * 纯服务端实现（无 client 组件）：
+ * - 已登录用户直接 redirect 回 returnUrl（默认首页），不再显示登录表单
  * - 表单 POST → server action requestLogin → signIn("email", { redirect: false })
  * - 成功：302 到 /login?sent=1&returnUrl=…（显示「链接已发送」）
  * - 失败：302 到 /login?error=…（显示中文提示）
@@ -90,6 +91,20 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 async function LoginCard({ searchParams }: LoginPageProps) {
   const sp = await searchParams;
   const returnUrl = sanitizeReturnUrl(first(sp.returnUrl));
+
+  // 已登录用户不再展示登录表单：直接跳回 returnUrl（默认首页）。
+  // auth() 读 session 属 request-time API，本组件已在 <Suspense> 内；
+  // 异常（无库 / 无绑定环境）按未登录处理，不阻断页面渲染。
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    session = null;
+  }
+  if (session?.user?.id) {
+    redirect(returnUrl);
+  }
+
   const sent = first(sp.sent) === "1";
   const errorCode = first(sp.error);
   const errorMessage = errorCode
