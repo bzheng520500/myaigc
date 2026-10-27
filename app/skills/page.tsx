@@ -161,6 +161,7 @@ async function SkillsContent({ searchParams }: SkillsPageProps) {
                 description={skill.description}
                 category={skill.category}
                 slug={skill.slug}
+                contentMd={skill.contentMd}
               />
             ))}
           </div>

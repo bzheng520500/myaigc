@@ -15,7 +15,14 @@ export const PAGE_SIZE = 20;
 /** 列表页消费的技能行（独立定义，比 home.ts 的多 id / viewCount / createdAt） */
 export type SkillRow = Pick<
   Skill,
-  "id" | "slug" | "name" | "description" | "category" | "viewCount" | "createdAt"
+  | "id"
+  | "slug"
+  | "name"
+  | "description"
+  | "category"
+  | "viewCount"
+  | "createdAt"
+  | "contentMd"
 >;
 
 const skillColumns = {
@@ -26,6 +33,9 @@ const skillColumns = {
   category: skills.category,
   viewCount: skills.viewCount,
   createdAt: skills.createdAt,
+  // 列表页卡片的复制按钮需要全文（与提示词库一致）。34 条 Skill 正文
+  // 合计约 42K 字符、单页 20 条约 25K，D1 单次查询可接受。
+  contentMd: skills.contentMd,
 };
 
 export type ListSkillsOptions = {

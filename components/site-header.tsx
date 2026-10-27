@@ -47,32 +47,43 @@ const USER_MENU_ITEM =
   "block w-full px-3 py-2 text-left text-sm text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg";
 
 /**
- * 登录用户菜单：details/summary 原生下拉（与 admin 新建表单同模式，
- * 无 client 组件化 / 无 JS）；「退出」保留 form + server action signOut。
+ * 登录用户菜单：hover 触发的纯 CSS 下拉（group-hover + focus-within）。
+ *
+ * 用 hover 而非 details/summary 的点击：鼠标移入显示、移出消失。
+ * 保留 focus-within 让键盘 Tab 也能进入菜单（无障碍）。
+ * 菜单与触发按钮同属一个 group 容器，两者之间用 pt-1 的透明间隙衔接，
+ * 避免鼠标从名字移到菜单的途中因空隙而收起。
+ * 「退出」保留 form + server action signOut。
  */
 function UserMenu({ userName, userId }: { userName: string; userId: string }) {
   return (
-    <details className="relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1 rounded-full px-2 py-1 text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg [&::-webkit-details-marker]:hidden">
+    <div className="group relative">
+      <button
+        type="button"
+        className="flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-fg-muted transition-colors group-hover:bg-accent-soft group-hover:text-accent-soft-fg focus-within:bg-accent-soft"
+        aria-haspopup="menu"
+      >
         <span className="max-w-32 truncate">{userName}</span>
         <span className="text-xs" aria-hidden="true">
           ▾
         </span>
-      </summary>
-      <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-lg border border-border bg-[var(--bg)] py-1 shadow-md">
-        <Link href={`/u/${userId}`} className={USER_MENU_ITEM}>
-          个人主页
-        </Link>
-        <Link href="/settings" className={USER_MENU_ITEM}>
-          设置
-        </Link>
-        <form action={signOutAction}>
-          <button type="submit" className={USER_MENU_ITEM}>
-            退出
-          </button>
-        </form>
+      </button>
+      <div className="pointer-events-none invisible absolute right-0 top-full z-50 w-40 pt-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100">
+        <div className="rounded-lg border border-border bg-[var(--bg)] py-1 shadow-md">
+          <Link href={`/u/${userId}`} className={USER_MENU_ITEM}>
+            个人主页
+          </Link>
+          <Link href="/settings" className={USER_MENU_ITEM}>
+            设置
+          </Link>
+          <form action={signOutAction}>
+            <button type="submit" className={USER_MENU_ITEM}>
+              退出
+            </button>
+          </form>
+        </div>
       </div>
-    </details>
+    </div>
   );
 }
 
