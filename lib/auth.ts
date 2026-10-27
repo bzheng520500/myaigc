@@ -114,6 +114,50 @@ async function markIpSent(ip: string): Promise<void> {
  */
 class EmailSignInError extends AuthError {}
 
+/** HTML 正文里插入动态值的转义（URL 含 & ? = 等字符，属性与文本都要转义） */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * 登录邮件 HTML 正文。
+ *
+ * 纯文本正文里的裸 URL 在 163 网页版等客户端不会被自动识别为链接，
+ * 因此提供 HTML 版本（multipart/alternative，客户端优先渲染 HTML）。
+ * 用内联样式 + 表格布局，兼容邮件客户端（不支持 <style>/flex）。
+ * 按钮之外再给一行裸链接，便于按钮被客户端屏蔽时手动复制。
+ */
+function loginEmailHtml(url: string): string {
+  const safeUrl = escapeHtml(url);
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><title>登录 AI影视工坊</title></head>
+<body style="margin:0;padding:24px;background:#f5f5f7;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#111827;">登录 AI影视工坊</h1>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">你好！点击下面的按钮即可登录「AI影视工坊」，链接 <strong>15 分钟</strong>内有效。</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+        <tr><td style="border-radius:8px;background:#2563eb;">
+          <a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">立即登录</a>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.7;color:#6b7280;">按钮无法点击时，请复制以下链接到浏览器打开：</p>
+      <p style="margin:0 0 24px;font-size:13px;line-height:1.7;word-break:break-all;">
+        <a href="${safeUrl}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:underline;">${safeUrl}</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 16px;" />
+      <p style="margin:0;font-size:12px;line-height:1.7;color:#9ca3af;">如果这不是你本人的操作，请忽略本邮件。</p>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 /**
  * 手写 Email provider 工厂（Task 14 fix：next-auth/providers/email 是
  * @auth/core 的 deprecated 别名，内部静态 import nodemailer 导致构建
@@ -191,6 +235,10 @@ export function emailProvider(): Provider {
           "",
           "如果这不是你本人的操作，请忽略本邮件。",
         ].join("\n"),
+        // 纯文本邮件里的裸 URL 在部分客户端（如 163 网页版）不会被识别成
+        // 可点击链接，因此同时提供 HTML 部分（multipart/alternative，
+        // 客户端优先渲染 HTML）。
+        html: loginEmailHtml(url),
       });
     } catch (error) {
       // 诊断：Auth.js 会把异常转成 error=Verification 重定向，原始失败
