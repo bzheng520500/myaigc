@@ -193,6 +193,12 @@
   html {
     @apply font-sans;
   }
+  /* 按钮默认手型光标：浏览器对 <button> 默认给箭头，与链接不一致。
+     禁用态由组件自身的 disabled:cursor-not-allowed 覆盖（同层优先级更高）。 */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 /* ============================================================

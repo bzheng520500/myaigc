@@ -77,7 +77,7 @@ function UserMenu({ userName, userId }: { userName: string; userId: string }) {
             设置
           </Link>
           <form action={signOutAction}>
-            <button type="submit" className={USER_MENU_ITEM}>
+            <button type="submit" className={`${USER_MENU_ITEM} cursor-pointer`}>
               退出
             </button>
           </form>

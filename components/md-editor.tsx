@@ -87,7 +87,7 @@ export function MdEditor({ value, onChange }: MdEditorProps) {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="rounded-full border border-border px-3 py-1.5 text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg"
+          className="cursor-pointer rounded-full border border-border px-3 py-1.5 text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg"
         >
           导入 .md 文件
         </button>

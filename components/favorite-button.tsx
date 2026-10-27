@@ -89,7 +89,7 @@ export function FavoriteButton({
       onClick={handleClick}
       aria-pressed={favorited}
       aria-label={favorited ? "取消收藏" : "收藏"}
-      className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg aria-pressed:border-accent aria-pressed:text-accent"
+      className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg aria-pressed:border-accent aria-pressed:text-accent"
     >
       <Star
         aria-hidden="true"
